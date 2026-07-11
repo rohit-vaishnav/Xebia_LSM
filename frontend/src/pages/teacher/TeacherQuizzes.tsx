@@ -493,6 +493,7 @@ export const TeacherQuizzes: React.FC = () => {
       lateSubmissionAllowed: false,
       maxFileSize: 10485760,
       questions: questionsPayload,
+      status: status === 'published' ? 'draft' : status,
     };
 
     const loadingToast = toast.loading(isEditMode ? 'Updating quiz...' : 'Creating quiz...');
@@ -507,12 +508,15 @@ export const TeacherQuizzes: React.FC = () => {
 
       const quizId = editingQuizId || savedQuiz?.assignment?.id || savedQuiz?.id;
 
-      // Call assignBatch if:
-      // 1. Status is 'published'
-      // 2. We have batch IDs selected
-      // 3. We didn't already send batchId in the initial payload (i.e. it was a draft or new quiz)
-      if (status === 'published' && quizBatchIds.length > 0 && !initialBatchId && quizId) {
-        await teacherService.assignBatch(quizId, quizBatchIds);
+      // Publish the quiz only after it exists and has been assigned to its batches.
+      if (status === 'published' && quizId) {
+        if (quizBatchIds.length > 0) {
+          await teacherService.assignBatch(quizId, quizBatchIds);
+        }
+        await teacherService.updateAssignment(String(quizId), {
+          ...payload,
+          status: 'published',
+        } as any);
       }
 
       toast.success(
