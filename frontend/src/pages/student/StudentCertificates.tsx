@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Award, Calendar, Download, Share2, CheckCircle, Eye, AlertCircle, FileText, CheckSquare, Sparkles, RefreshCw, Trophy, XCircle } from 'lucide-react';
 import { Layout } from '../../components/layout/Layout';
@@ -9,6 +9,8 @@ import { certificateService } from '../../services/certificate.service';
 import type { Certificate } from '../../services/certificate.service';
 import { studentService } from '../../services/student.service';
 import toast from 'react-hot-toast';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 export const StudentCertificates: React.FC = () => {
   const navigate = useNavigate();
@@ -18,6 +20,7 @@ export const StudentCertificates: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
   const [activeSubject, setActiveSubject] = useState<string>('');
+  const certificateRef = useRef<HTMLDivElement>(null);
 
   const fetchProgressAndCertificates = async () => {
     setLoading(true);
@@ -181,15 +184,36 @@ export const StudentCertificates: React.FC = () => {
   }, [isCertEligible, finalActivityId, courseCert, activeSubject]);
 
   const handleDownload = async () => {
-    if (!finalActivityId) return;
+    if (!finalActivityId || !certificateRef.current) return;
     setDownloading(true);
     const loadingToast = toast.loading('Generating and downloading your certificate...');
     try {
-      await certificateService.downloadOrGenerateCertificate(finalActivityId, `course-certificate-${finalActivityId}.pdf`);
+      const element = certificateRef.current;
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#faf5ed'
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`certificate-${finalActivityId}.pdf`);
+
       toast.success('Certificate downloaded successfully!', { id: loadingToast });
       await fetchProgressAndCertificates();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to download certificate', { id: loadingToast });
+      console.error(err);
+      toast.error('Failed to generate and download certificate', { id: loadingToast });
     } finally {
       setDownloading(false);
     }
@@ -391,7 +415,7 @@ export const StudentCertificates: React.FC = () => {
               </Card>
 
               {/* Framed Certificate Preview */}
-              <div className="max-w-4xl mx-auto bg-white text-slate-800 rounded-3xl shadow-xl border border-slate-100 p-6 sm:p-12 relative overflow-hidden select-none">
+              <div ref={certificateRef} className="max-w-4xl mx-auto bg-white text-slate-800 rounded-3xl shadow-xl border border-slate-100 p-6 sm:p-12 relative overflow-hidden select-none">
                 <div className="border-[8px] border-[#4A1F4F] rounded-2xl p-4 sm:p-8 relative min-h-[460px] flex flex-col justify-between bg-slate-50/20">
                   <div className="absolute inset-2 border border-slate-200 pointer-events-none rounded-lg" />
                   

@@ -152,168 +152,215 @@ public class SubmissionServiceImpl implements SubmissionService {
     @Override
     @Transactional
     public SubmissionResponse submitAssignment(Long assignmentId, StudentSubmitRequest request, String studentEmail) {
-        Student student = getStudent(studentEmail);
-        Assignment assignment = assignmentRepository.findById(assignmentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Assignment not found"));
-
-        if (assignment.getBatch() == null) {
-            throw new BadRequestException("This assignment is not assigned to a batch");
-        }
-
-        if (student.getBatch() == null) {
-            throw new BadRequestException("You are not assigned to a batch");
-        }
-
-        if (!student.getBatch().getId().equals(assignment.getBatch().getId())) {
-            throw new BadRequestException("This assignment is not assigned to your batch");
-        }
-
-        // Validate deadline
-        LocalDate today = LocalDate.now();
-        LocalTime nowTime = LocalTime.now();
-        if (today.isAfter(assignment.getDueDate()) || 
-           (today.isEqual(assignment.getDueDate()) && nowTime.isAfter(assignment.getDueTime()))) {
-            if (!assignment.getLateSubmissionAllowed()) {
-                throw new BadRequestException("Late submissions are not allowed for this assignment");
-            }
-        }
-
-        // If it's a QUIZ assignment, evaluate it immediately
-        if (assignment.getAssignmentType() == com.assignment.enums.AssignmentType.QUIZ) {
-            if (request.getQuizAnswersJson() == null || request.getQuizAnswersJson().isBlank()) {
-                throw new BadRequestException("Quiz answers are required");
+        System.out.println("[DEBUG] [submitAssignment] Request received for assignmentId: " + assignmentId + ", studentEmail: " + studentEmail);
+        try {
+            Student student = getStudent(studentEmail);
+            System.out.println("[DEBUG] [submitAssignment] Student ID: " + student.getId());
+            
+            Assignment assignment = assignmentRepository.findById(assignmentId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Assignment not found"));
+            System.out.println("[DEBUG] [submitAssignment] Assignment ID: " + assignment.getId() + ", Title: " + assignment.getTitle());
+            
+            if (assignment.getBatch() == null) {
+                System.out.println("[DEBUG] [submitAssignment] Validation failed: Assignment has no batch");
+                throw new BadRequestException("This assignment is not assigned to a batch");
             }
             
-            // Prevent duplicate submissions unless retries are explicitly allowed
-            Optional<Submission> existingSub = submissionRepository.findByAssignmentIdAndStudentId(assignmentId, student.getId());
-            if (existingSub.isPresent()) {
-                int attemptsAllowed = 1;
+            if (student.getBatch() == null) {
+                System.out.println("[DEBUG] [submitAssignment] Validation failed: Student has no batch");
+                throw new BadRequestException("You are not assigned to a batch");
+            }
+            
+            if (!student.getBatch().getId().equals(assignment.getBatch().getId())) {
+                System.out.println("[DEBUG] [submitAssignment] Validation failed: Batch mismatch. Student batch: " + student.getBatch().getId() + ", Assignment batch: " + assignment.getBatch().getId());
+                throw new BadRequestException("This assignment is not assigned to your batch");
+            }
+            
+            // Validate deadline
+            LocalDate today = LocalDate.now();
+            LocalTime nowTime = LocalTime.now();
+            if (today.isAfter(assignment.getDueDate()) || 
+               (today.isEqual(assignment.getDueDate()) && nowTime.isAfter(assignment.getDueTime()))) {
+                if (!assignment.getLateSubmissionAllowed()) {
+                    System.out.println("[DEBUG] [submitAssignment] Validation failed: Late submission not allowed");
+                    throw new BadRequestException("Late submissions are not allowed for this assignment");
+                }
+            }
+            
+            System.out.println("[DEBUG] [submitAssignment] Validation result: Success");
+            
+            // If it's a QUIZ assignment, evaluate it immediately
+            if (assignment.getAssignmentType() == com.assignment.enums.AssignmentType.QUIZ) {
+                System.out.println("[DEBUG] [submitAssignment] Processing QUIZ submission");
+                if (request.getQuizAnswersJson() == null || request.getQuizAnswersJson().isBlank()) {
+                    System.out.println("[DEBUG] [submitAssignment] Validation failed: Quiz answers are required");
+                    throw new BadRequestException("Quiz answers are required");
+                }
+                
+                System.out.println("[DEBUG] [submitAssignment] Querying existing submission for duplicate check");
+                Optional<Submission> existingSub = submissionRepository.findByAssignmentIdAndStudentId(assignmentId, student.getId());
+                if (existingSub.isPresent()) {
+                    System.out.println("[DEBUG] [submitAssignment] Existing submission found");
+                    int attemptsAllowed = 1;
+                    try {
+                        String instructions = assignment.getInstructions();
+                        if (instructions != null && instructions.trim().startsWith("{")) {
+                            com.fasterxml.jackson.databind.JsonNode meta = objectMapper.readTree(instructions);
+                            if (meta.has("attemptsAllowed")) {
+                                attemptsAllowed = meta.get("attemptsAllowed").asInt();
+                            }
+                        }
+                    } catch (Exception e) {
+                        System.out.println("[DEBUG] [submitAssignment] Failed to parse attemptsAllowed from instructions: " + e.getMessage());
+                    }
+                    if (attemptsAllowed <= 1) {
+                        System.out.println("[DEBUG] [submitAssignment] Validation failed: Already submitted and only 1 attempt allowed");
+                        throw new BadRequestException("You have already completed this quiz");
+                    }
+                }
+                
+                double totalScore = 0.0;
                 try {
-                    String instructions = assignment.getInstructions();
-                    if (instructions != null && instructions.trim().startsWith("{")) {
-                        com.fasterxml.jackson.databind.JsonNode meta = objectMapper.readTree(instructions);
-                        if (meta.has("attemptsAllowed")) {
-                            attemptsAllowed = meta.get("attemptsAllowed").asInt();
+                    System.out.println("[DEBUG] [submitAssignment] Parsing quiz answers: " + request.getQuizAnswersJson());
+                    List<java.util.Map<String, Object>> studentAnswers = objectMapper.readValue(
+                            request.getQuizAnswersJson(),
+                            new com.fasterxml.jackson.core.type.TypeReference<List<java.util.Map<String, Object>>>() {}
+                    );
+                    
+                    System.out.println("[DEBUG] [submitAssignment] Querying questions for assignment: " + assignmentId);
+                    List<com.assignment.entity.Question> questions = questionRepository.findByAssignmentId(assignmentId);
+                    java.util.Map<Long, com.assignment.entity.Question> questionMap = new java.util.HashMap<>();
+                    for (com.assignment.entity.Question q : questions) {
+                        questionMap.put(q.getId(), q);
+                    }
+                    
+                    for (java.util.Map<String, Object> ans : studentAnswers) {
+                        Number qIdNum = (Number) ans.get("questionId");
+                        if (qIdNum == null) continue;
+                        Long qId = qIdNum.longValue();
+                        String selectedOption = (String) ans.get("selectedOption");
+                        if (selectedOption == null) selectedOption = "";
+                        
+                        com.assignment.entity.Question q = questionMap.get(qId);
+                        if (q != null && checkAnswerCorrectness(q, selectedOption)) {
+                            totalScore += q.getMarks();
                         }
                     }
+                    System.out.println("[DEBUG] [submitAssignment] Evaluated score: " + totalScore);
                 } catch (Exception e) {
-                    // Ignore
+                    System.out.println("[DEBUG] [submitAssignment] Quiz evaluation failed");
+                    e.printStackTrace();
+                    throw new BadRequestException("Failed to evaluate quiz submission: " + e.getMessage());
                 }
-                if (attemptsAllowed <= 1) {
-                    throw new BadRequestException("You have already completed this quiz");
+
+                Submission submission;
+                if (existingSub.isPresent()) {
+                    System.out.println("[DEBUG] [submitAssignment] Overwriting existing submission");
+                    submission = existingSub.get();
+                    submission.setSubmissionUrl("QUIZ_SUBMISSION");
+                    submission.setQuizAnswers(request.getQuizAnswersJson());
+                    submission.setComment(request.getComment());
+                    submission.setSubmittedAt(LocalDateTime.now());
+                    submission.setReviewedAt(LocalDateTime.now());
+                    submission.setMarks(totalScore);
+                    submission.setFeedback("Auto-graded Quiz");
+                    submission.setStatus(SubmissionStatus.REVIEWED);
+                } else {
+                    System.out.println("[DEBUG] [submitAssignment] Creating new submission");
+                    submission = Submission.builder()
+                            .assignment(assignment)
+                            .student(student)
+                            .submissionUrl("QUIZ_SUBMISSION")
+                            .quizAnswers(request.getQuizAnswersJson())
+                            .comment(request.getComment())
+                            .submittedAt(LocalDateTime.now())
+                            .reviewedAt(LocalDateTime.now())
+                            .marks(totalScore)
+                            .feedback("Auto-graded Quiz")
+                            .status(SubmissionStatus.REVIEWED)
+                            .build();
                 }
-            }
-            
-            double totalScore = 0.0;
-            try {
-                // Parse student answers
-                List<java.util.Map<String, Object>> studentAnswers = objectMapper.readValue(
-                        request.getQuizAnswersJson(),
-                        new com.fasterxml.jackson.core.type.TypeReference<List<java.util.Map<String, Object>>>() {}
-                );
                 
-                // Fetch all questions
-                List<com.assignment.entity.Question> questions = questionRepository.findByAssignmentId(assignmentId);
-                java.util.Map<Long, com.assignment.entity.Question> questionMap = new java.util.HashMap<>();
-                for (com.assignment.entity.Question q : questions) {
-                    questionMap.put(q.getId(), q);
+                System.out.println("[DEBUG] [submitAssignment] Executing repository save");
+                Submission savedSubmission = submissionRepository.save(submission);
+                System.out.println("[DEBUG] [submitAssignment] Save operation successful. Saved Submission ID: " + savedSubmission.getId());
+                
+                System.out.println("[DEBUG] [submitAssignment] Rebuilding assignment status cache in Redis");
+                rebuildAssignmentStatusCache(assignmentId);
+                
+                System.out.println("[DEBUG] [submitAssignment] Attempting certificate generation");
+                try {
+                    certificateService.generateCertificateForSubmission(savedSubmission.getId());
+                } catch (Exception e) {
+                    System.err.println("[DEBUG] [submitAssignment] Failed to generate quiz certificate (expected if failed): " + e.getMessage());
+                    e.printStackTrace();
                 }
                 
-                for (java.util.Map<String, Object> ans : studentAnswers) {
-                    Number qIdNum = (Number) ans.get("questionId");
-                    if (qIdNum == null) continue;
-                    Long qId = qIdNum.longValue();
-                    String selectedOption = (String) ans.get("selectedOption");
-                    if (selectedOption == null) selectedOption = "";
-                    
-                    com.assignment.entity.Question q = questionMap.get(qId);
-                    if (q != null && checkAnswerCorrectness(q, selectedOption)) {
-                        totalScore += q.getMarks();
-                    }
-                }
-            } catch (Exception e) {
-                throw new BadRequestException("Failed to evaluate quiz submission: " + e.getMessage());
+                SubmissionResponse response = submissionMapper.toResponse(savedSubmission);
+                System.out.println("[DEBUG] [submitAssignment] Transaction status: committing. Final response score: " + response.getMarks());
+                return response;
             }
 
+            System.out.println("[DEBUG] [submitAssignment] Processing File Upload submission");
+            String fileUrl = null;
+            if (request.getFile() != null && !request.getFile().isEmpty()) {
+                if (request.getFile().getSize() > assignment.getMaxFileSize()) {
+                    System.out.println("[DEBUG] [submitAssignment] Validation failed: File size exceeds limit");
+                    throw new BadRequestException("File size exceeds maximum allowed size of " + (assignment.getMaxFileSize() / (1024 * 1024)) + " MB");
+                }
+                System.out.println("[DEBUG] [submitAssignment] Uploading file to Cloudinary");
+                fileUrl = cloudinaryService.uploadFile(request.getFile(), "assignment_system/submissions");
+                System.out.println("[DEBUG] [submitAssignment] File uploaded successfully. URL: " + fileUrl);
+            } else {
+                System.out.println("[DEBUG] [submitAssignment] Validation failed: File is required");
+                throw new BadRequestException("Submission file is required");
+            }
+
+            System.out.println("[DEBUG] [submitAssignment] Querying existing submission for duplicate check");
+            Optional<Submission> existingSub = submissionRepository.findByAssignmentIdAndStudentId(assignmentId, student.getId());
             Submission submission;
             if (existingSub.isPresent()) {
+                System.out.println("[DEBUG] [submitAssignment] Overwriting existing submission");
                 submission = existingSub.get();
-                submission.setSubmissionUrl("QUIZ_SUBMISSION");
-                submission.setQuizAnswers(request.getQuizAnswersJson());
+                submission.setSubmissionUrl(fileUrl);
                 submission.setComment(request.getComment());
                 submission.setSubmittedAt(LocalDateTime.now());
-                submission.setReviewedAt(LocalDateTime.now());
-                submission.setMarks(totalScore);
-                submission.setFeedback("Auto-graded Quiz");
-                submission.setStatus(SubmissionStatus.REVIEWED);
+                submission.setStatus(SubmissionStatus.SUBMITTED);
             } else {
+                System.out.println("[DEBUG] [submitAssignment] Creating new submission");
                 submission = Submission.builder()
                         .assignment(assignment)
                         .student(student)
-                        .submissionUrl("QUIZ_SUBMISSION")
-                        .quizAnswers(request.getQuizAnswersJson())
+                        .submissionUrl(fileUrl)
                         .comment(request.getComment())
                         .submittedAt(LocalDateTime.now())
-                        .reviewedAt(LocalDateTime.now())
-                        .marks(totalScore)
-                        .feedback("Auto-graded Quiz")
-                        .status(SubmissionStatus.REVIEWED)
+                        .status(SubmissionStatus.SUBMITTED)
                         .build();
             }
-            
+
+            System.out.println("[DEBUG] [submitAssignment] Executing repository save");
             Submission savedSubmission = submissionRepository.save(submission);
+            System.out.println("[DEBUG] [submitAssignment] Save operation successful. Saved Submission ID: " + savedSubmission.getId());
+
+            System.out.println("[DEBUG] [submitAssignment] Rebuilding assignment status cache in Redis");
             rebuildAssignmentStatusCache(assignmentId);
+
+            System.out.println("[DEBUG] [submitAssignment] Attempting certificate generation");
             try {
                 certificateService.generateCertificateForSubmission(savedSubmission.getId());
             } catch (Exception e) {
-                System.err.println("Failed to generate quiz certificate: " + e.getMessage());
+                System.err.println("[DEBUG] [submitAssignment] Failed to generate assignment certificate (expected if not reviewed): " + e.getMessage());
+                e.printStackTrace();
             }
-            return submissionMapper.toResponse(savedSubmission);
+
+            SubmissionResponse response = submissionMapper.toResponse(savedSubmission);
+            System.out.println("[DEBUG] [submitAssignment] Transaction status: committing. Final response status: " + response.getStatus());
+            return response;
+        } catch (Exception ex) {
+            System.out.println("[DEBUG] [submitAssignment] Exception occurred during submission");
+            ex.printStackTrace();
+            throw ex;
         }
-
-        // File upload
-        String fileUrl = null;
-        if (request.getFile() != null && !request.getFile().isEmpty()) {
-            if (request.getFile().getSize() > assignment.getMaxFileSize()) {
-                throw new BadRequestException("File size exceeds maximum allowed size of " + (assignment.getMaxFileSize() / (1024 * 1024)) + " MB");
-            }
-            fileUrl = cloudinaryService.uploadFile(request.getFile(), "assignment_system/submissions");
-        } else {
-            throw new BadRequestException("Submission file is required");
-        }
-
-        // Check if student already has a submission (allow resubmission / update)
-        Optional<Submission> existingSub = submissionRepository.findByAssignmentIdAndStudentId(assignmentId, student.getId());
-        Submission submission;
-        if (existingSub.isPresent()) {
-            submission = existingSub.get();
-            submission.setSubmissionUrl(fileUrl);
-            submission.setComment(request.getComment());
-            submission.setSubmittedAt(LocalDateTime.now());
-            submission.setStatus(SubmissionStatus.SUBMITTED);
-        } else {
-            submission = Submission.builder()
-                    .assignment(assignment)
-                    .student(student)
-                    .submissionUrl(fileUrl)
-                    .comment(request.getComment())
-                    .submittedAt(LocalDateTime.now())
-                    .status(SubmissionStatus.SUBMITTED)
-                    .build();
-        }
-
-        Submission savedSubmission = submissionRepository.save(submission);
-
-        // Update Redis
-        rebuildAssignmentStatusCache(assignmentId);
-
-        try {
-            certificateService.generateCertificateForSubmission(savedSubmission.getId());
-        } catch (Exception e) {
-            System.err.println("Failed to generate assignment certificate on submission: " + e.getMessage());
-        }
-
-        return submissionMapper.toResponse(savedSubmission);
     }
 
     @Override

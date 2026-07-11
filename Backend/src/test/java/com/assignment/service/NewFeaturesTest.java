@@ -204,11 +204,12 @@ public class NewFeaturesTest {
         com.fasterxml.jackson.databind.ObjectMapper objectMapper = org.mockito.Mockito.mock(com.fasterxml.jackson.databind.ObjectMapper.class);
         com.assignment.service.ExcelImportService excelImportService = org.mockito.Mockito.mock(com.assignment.service.ExcelImportService.class);
         com.assignment.service.ExcelExportService excelExportService = org.mockito.Mockito.mock(com.assignment.service.ExcelExportService.class);
+        com.assignment.repository.CertificateRepository certificateRepository = org.mockito.Mockito.mock(com.assignment.repository.CertificateRepository.class);
 
         com.assignment.service.impl.AssignmentServiceImpl service = new com.assignment.service.impl.AssignmentServiceImpl(
             assignmentRepository, teacherRepository, batchRepository, studentRepository, submissionRepository,
             cloudinaryService, redisService, assignmentMapper, questionRepository, questionMapper,
-            objectMapper, excelImportService, excelExportService
+            objectMapper, excelImportService, excelExportService, certificateRepository
         );
 
         String teacherEmail = "teacher@test.com";

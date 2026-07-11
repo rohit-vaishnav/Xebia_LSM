@@ -301,23 +301,30 @@ export const studentService = {
 
   // Submissions
   submitAssignment: async (assignmentId: string, payload: File | { quizAnswersJson: string }, onProgress?: (pct: number) => void) => {
+    console.log("Submitting Quiz Payload:", payload);
     const formData = new FormData();
     if (payload instanceof File) {
       formData.append('file', payload);
     } else {
       formData.append('quizAnswersJson', payload.quizAnswersJson);
     }
-    const res = await api.post(`/student/assignments/${assignmentId}/submit`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-      onUploadProgress: (e) => {
-        if (onProgress && e.total) {
-          onProgress(Math.round((e.loaded * 100) / e.total));
-        }
-      },
-    });
-    return res.data;
+    try {
+      const res = await api.post(`/student/assignments/${assignmentId}/submit`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        onUploadProgress: (e) => {
+          if (onProgress && e.total) {
+            onProgress(Math.round((e.loaded * 100) / e.total));
+          }
+        },
+      });
+      console.log("API Response:", res.data);
+      return res.data;
+    } catch (error) {
+      console.log("API Error:", error);
+      throw error;
+    }
   },
 
   getMySubmissions: async () => {

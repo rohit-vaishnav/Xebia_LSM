@@ -471,12 +471,9 @@ export const TeacherQuizzes: React.FC = () => {
       };
     });
 
-    // Determine batchId to send in the initial save/update payload:
-    // If we are publishing a quiz that is currently a draft or a new quiz,
-    // we save it as a draft first (batchId = null) and then call assignBatch.
-    // If it's an edit of a quiz that already has a batch, we keep it.
-    const isEditingAlreadyPublished = isEditMode && editingQuizId && quizzes.find(q => String(q.id) === String(editingQuizId))?.status === 'published';
-    const initialBatchId = isEditingAlreadyPublished && quizBatchIds.length > 0 ? Number(quizBatchIds[0]) : null;
+    const targetBatchId = quizBatchIds.length > 0 ? Number(quizBatchIds[0]) : null;
+
+    console.log("Selected Target Batch:", targetBatchId);
 
     const payload = {
       title: quizTitle,
@@ -485,7 +482,7 @@ export const TeacherQuizzes: React.FC = () => {
       assignmentType: 'QUIZ',
       subject: quizSubject,
       topic: quizTopic,
-      batchId: initialBatchId,
+      batchId: targetBatchId,
       maxMarks: totalMarks,
       passingMarks,
       dueDate: quizDueDate,
@@ -493,8 +490,9 @@ export const TeacherQuizzes: React.FC = () => {
       lateSubmissionAllowed: false,
       maxFileSize: 10485760,
       questions: questionsPayload,
-      status: status === 'published' ? 'draft' : status,
     };
+
+    console.log("Quiz Creation Payload:", payload);
 
     const loadingToast = toast.loading(isEditMode ? 'Updating quiz...' : 'Creating quiz...');
 
@@ -506,25 +504,24 @@ export const TeacherQuizzes: React.FC = () => {
         savedQuiz = await teacherService.createAssignment(payload as any);
       }
 
-      const quizId = editingQuizId || savedQuiz?.assignment?.id || savedQuiz?.id;
+      const response = savedQuiz;
+      console.log("Backend Response:", response.data);
 
-      // Publish the quiz only after it exists and has been assigned to its batches.
-      if (status === 'published' && quizId) {
-        if (quizBatchIds.length > 0) {
-          await teacherService.assignBatch(quizId, quizBatchIds);
-        }
-        await teacherService.updateAssignment(String(quizId), {
-          ...payload,
-          status: 'published',
-        } as any);
+      const quizId = editingQuizId || response?.data?.id || response?.id;
+
+      // If multiple batches were selected, assign the additional ones
+      if (quizId && quizBatchIds.length > 1) {
+        await teacherService.assignBatch(quizId, quizBatchIds.slice(1));
       }
+
+      const isDraftResult = response?.data?.status === 'DRAFT';
 
       toast.success(
         isEditMode
           ? 'Quiz updated successfully.'
-          : status === 'published'
-          ? 'Quiz published successfully.'
-          : 'Quiz saved as draft successfully.',
+          : isDraftResult
+          ? 'Quiz saved as draft successfully.'
+          : 'Quiz published successfully.',
         { id: loadingToast }
       );
       handleCloseCreateModal();

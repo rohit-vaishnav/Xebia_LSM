@@ -48,6 +48,7 @@ public class AssignmentServiceImpl implements AssignmentService {
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     private final com.assignment.service.ExcelImportService excelImportService;
     private final com.assignment.service.ExcelExportService excelExportService;
+    private final com.assignment.repository.CertificateRepository certificateRepository;
 
     private Teacher getTeacher(String email) {
         Teacher teacher = teacherRepository.findByEmail(email)
@@ -389,6 +390,10 @@ public class AssignmentServiceImpl implements AssignmentService {
         Teacher teacher = getTeacher(teacherEmail);
         Assignment assignment = assignmentRepository.findByIdAndTeacherId(id, teacher.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Assignment not found or unauthorized"));
+
+        if (certificateRepository.existsByAssignmentId(id) || certificateRepository.existsByQuizId(id)) {
+            throw new BadRequestException("Cannot delete this assignment because certificates have already been generated.");
+        }
 
         assignmentRepository.delete(assignment);
 

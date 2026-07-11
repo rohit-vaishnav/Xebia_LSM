@@ -16,6 +16,8 @@ public interface CertificateRepository extends JpaRepository<Certificate, Long> 
     Optional<Certificate> findByStudentIdAndQuizId(Long studentId, Long quizId);
     Optional<Certificate> findByVerificationToken(String verificationToken);
     Optional<Certificate> findByCertificateId(String certificateId);
+    boolean existsByAssignmentId(Long assignmentId);
+    boolean existsByQuizId(Long quizId);
 
     @Query("SELECT c FROM Certificate c WHERE " +
            "((c.assignment IS NOT NULL AND c.assignment.teacher.email = :email) OR " +
