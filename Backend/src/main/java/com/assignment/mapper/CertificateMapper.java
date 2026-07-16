@@ -15,6 +15,8 @@ public interface CertificateMapper {
     @Mapping(target = "assignmentTitle", source = "assignment.title")
     @Mapping(target = "quizId", source = "quiz.id")
     @Mapping(target = "quizTitle", source = "quiz.title")
+    @Mapping(target = "courseId", source = "course.id")
+    @Mapping(target = "courseTitle", source = "course.title")
     CertificateResponse toResponse(Certificate certificate);
 
     List<CertificateResponse> toResponseList(List<Certificate> certificates);

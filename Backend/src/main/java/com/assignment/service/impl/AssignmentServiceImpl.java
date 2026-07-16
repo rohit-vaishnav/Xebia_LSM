@@ -245,12 +245,19 @@ public class AssignmentServiceImpl implements AssignmentService {
     @Transactional(readOnly = true)
     public List<AssignmentResponse> getStudentAssignments(String studentEmail, int page, int size) {
         Student student = getStudent(studentEmail);
-        if (student.getBatch() == null) {
-            return List.of();
+        List<Assignment> combinedList = new java.util.ArrayList<>();
+        
+        if (student.getBatch() != null) {
+            Pageable pageable = PageRequest.of(page, size);
+            Page<Assignment> assignmentPage = assignmentRepository.findByBatchIdAndStatus(student.getBatch().getId(), AssignmentStatus.ACTIVE, pageable);
+            combinedList.addAll(assignmentPage.getContent());
         }
-        Pageable pageable = PageRequest.of(page, size);
-        Page<Assignment> assignmentPage = assignmentRepository.findByBatchIdAndStatus(student.getBatch().getId(), AssignmentStatus.ACTIVE, pageable);
-        return populateResponseCounts(assignmentMapper.toResponseList(assignmentPage.getContent()));
+        
+        // Add global active assignments
+        List<Assignment> globalList = assignmentRepository.findByBatchIdIsNullAndStatus(AssignmentStatus.ACTIVE);
+        combinedList.addAll(globalList);
+        
+        return populateResponseCounts(assignmentMapper.toResponseList(combinedList));
     }
 
     @Override
@@ -263,11 +270,17 @@ public class AssignmentServiceImpl implements AssignmentService {
                     .orElseThrow(() -> new ResourceNotFoundException("Assignment not found or unauthorized"));
         } else {
             Student student = getStudent(email);
-            if (student.getBatch() == null) {
-                throw new BadRequestException("Student has not been assigned to a batch yet");
-            }
-            assignment = assignmentRepository.findByIdAndBatchIdAndStatus(id, student.getBatch().getId(), AssignmentStatus.ACTIVE)
+            assignment = assignmentRepository.findById(id)
                     .orElseThrow(() -> new ResourceNotFoundException("Assignment not found or unauthorized"));
+            
+            boolean isGlobal = assignment.getBatch() == null && assignment.getStatus() == AssignmentStatus.ACTIVE;
+            boolean isBatchAssigned = assignment.getBatch() != null && student.getBatch() != null && 
+                                      assignment.getBatch().getId().equals(student.getBatch().getId()) && 
+                                      assignment.getStatus() == AssignmentStatus.ACTIVE;
+            
+            if (!isGlobal && !isBatchAssigned) {
+                throw new ResourceNotFoundException("Assignment not found or unauthorized");
+            }
         }
         
         boolean hasSubmitted = false;

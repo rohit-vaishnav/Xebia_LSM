@@ -4,7 +4,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import toast from 'react-hot-toast';
-import { Upload, X, ArrowLeft, ChevronDown, Search } from 'lucide-react';
+import { Upload, X, ArrowLeft, ChevronDown, Search, BookOpen, Calendar, Clock, Users, FileText, Settings, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Layout } from '../../components/layout/Layout';
 import { Button } from '../../components/ui/Button';
 import { Input, Textarea } from '../../components/ui/Input';
@@ -234,7 +234,7 @@ export const CreateAssignment: React.FC = () => {
 
   return (
     <Layout role="teacher" title={pageTitle} subtitle="Fill in the details below">
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-7xl mx-auto pb-24 px-4 sm:px-6 lg:px-8">
         <button
           onClick={() => navigate('/teacher/assignments')}
           className="flex items-center gap-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] mb-6 cursor-pointer transition-colors"
@@ -242,244 +242,269 @@ export const CreateAssignment: React.FC = () => {
           <ArrowLeft size={16} /> Back to Assignments
         </button>
 
-        <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
-          <Card>
-            <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-4 pb-3 border-b border-[var(--brand-border)]">
-              Basic Information
-            </h3>
-            <div className="space-y-4">
-              <Input 
-                label="Assignment Title" 
-                placeholder="e.g. Chapter 5 — Newton's Laws" 
-                required 
-                error={errors.title?.message} 
-                {...register('title')} 
-              />
-              
-              <Input 
-                label="Topic" 
-                placeholder="e.g. Laws of Motion" 
-                error={errors.topic?.message} 
-                {...register('topic')} 
-              />
-              
-              {/* Searchable Batch Dropdown */}
-              <div className="relative">
-                <label className="text-sm font-medium text-[var(--text-primary)]">
-                  Batch <span className="text-red-500">*</span>
-                </label>
-                <div className="mt-1">
+        <form className="grid grid-cols-1 lg:grid-cols-3 gap-6" onSubmit={(e) => e.preventDefault()}>
+          {/* Left Main Form Section */}
+          <div className="lg:col-span-2 space-y-6">
+            <Card className="rounded-[18px] shadow-sm bg-white dark:bg-slate-900 border border-[var(--brand-border)] p-6">
+              <h3 className="text-sm font-bold text-[var(--text-primary)] mb-5 pb-3 border-b border-[var(--brand-border)] flex items-center gap-2.5">
+                <FileText size={18} className="text-[#6C1D5F] dark:text-purple-400" />
+                Basic Information
+              </h3>
+              <div className="space-y-4">
+                <Input 
+                  label="Assignment Title" 
+                  placeholder="e.g. Chapter 5 — Newton's Laws" 
+                  required 
+                  error={errors.title?.message} 
+                  {...register('title')} 
+                />
+                
+                <Input 
+                  label="Topic" 
+                  placeholder="e.g. Laws of Motion" 
+                  error={errors.topic?.message} 
+                  {...register('topic')} 
+                />
+
+                <Textarea
+                  label="Description"
+                  placeholder="Describe what this assignment is about..."
+                  required
+                  rows={4}
+                  error={errors.description?.message}
+                  {...register('description')}
+                />
+                
+                <Textarea
+                  label="Instructions (Optional)"
+                  placeholder="Detailed instructions for students..."
+                  rows={3}
+                  error={errors.instructions?.message}
+                  {...register('instructions')}
+                />
+              </div>
+            </Card>
+
+            <Card className="rounded-[18px] shadow-sm bg-white dark:bg-slate-900 border border-[var(--brand-border)] p-6">
+              <h3 className="text-sm font-bold text-[var(--text-primary)] mb-4 pb-3 border-b border-[var(--brand-border)] flex items-center gap-2.5">
+                <Upload size={18} className="text-[#6C1D5F] dark:text-purple-400" />
+                Attachment (Optional)
+              </h3>
+
+              {attachment ? (
+                <div className="flex items-center gap-3 p-4 rounded-xl bg-[#6C1D5F]/5 border border-[#6C1D5F]/20">
+                  <span className="text-2xl">{getFileIcon(attachment.name)}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-[var(--text-primary)] truncate">{attachment.name}</p>
+                    <p className="text-xs text-[var(--text-secondary)]">{(attachment.size / 1024).toFixed(0)} KB</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAttachment(null)}
+                    className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:bg-[#F5EAF8] hover:text-red-500 dark:hover:bg-[#F5EAF8]0/10 transition-colors cursor-pointer"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              ) : existingAttachment ? (
+                <div className="flex items-center gap-3 p-4 rounded-xl bg-blue-500/5 border border-blue-200 dark:border-teal-500/20">
+                  <span className="text-2xl">{getFileIcon(existingAttachmentName || '')}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-[var(--text-primary)] truncate">{existingAttachmentName}</p>
+                    <p className="text-xs text-[var(--text-secondary)]">Currently uploaded resource</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setExistingAttachment(null)}
+                    className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:bg-[#F5EAF8] hover:text-red-500 dark:hover:bg-[#F5EAF8]0/10 transition-colors cursor-pointer"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              ) : (
+                <div
+                  className={`drop-zone ${isDragging ? 'dragging' : ''} p-8 text-center border-2 border-dashed border-[var(--brand-border)] hover:border-slate-350 dark:hover:border-slate-700 rounded-[16px] transition-all cursor-pointer`}
+                  onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={onDrop}
+                  onClick={() => fileRef.current?.click()}
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-[#6C1D5F]/10 flex items-center justify-center mx-auto mb-3">
+                    <Upload size={22} className="text-[#6C1D5F] dark:text-purple-400" />
+                  </div>
+                  <p className="text-sm font-medium text-[var(--text-primary)]">
+                    Drop file here or <span className="text-[#6C1D5F] dark:text-purple-400">browse</span>
+                  </p>
+                  <p className="text-xs text-[var(--text-secondary)] mt-1">PDF, DOC, DOCX, ZIP, JPG, PNG · Max 25MB</p>
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    className="hidden"
+                    accept=".pdf,.doc,.docx,.zip,.jpg,.jpeg,.png"
+                    onChange={(e) => { if (e.target.files?.[0]) handleFile(e.target.files[0]); }}
+                  />
+                </div>
+              )}
+            </Card>
+          </div>
+
+          {/* Right Secondary Settings Section */}
+          <div className="space-y-6">
+            <Card className="rounded-[18px] shadow-sm bg-white dark:bg-slate-900 border border-[var(--brand-border)] p-6">
+              <h3 className="text-sm font-bold text-[var(--text-primary)] mb-4 pb-3 border-b border-[var(--brand-border)] flex items-center gap-2.5">
+                <Settings size={18} className="text-[#6C1D5F] dark:text-purple-400" />
+                Settings
+              </h3>
+              <div className="space-y-4">
+                <Input
+                  label="Due Date"
+                  type="date"
+                  required
+                  min={today}
+                  error={errors.dueDate?.message}
+                  {...register('dueDate')}
+                />
+                <Input
+                  label="Total Marks"
+                  type="number"
+                  min={1}
+                  max={1000}
+                  required
+                  error={errors.maxMarks?.message}
+                  {...register('maxMarks')}
+                />
+                <Input
+                  label="Passing Marks"
+                  type="number"
+                  required
+                  error={errors.passingMarks?.message}
+                  {...register('passingMarks')}
+                />
+                <div>
+                  <Input
+                    label="Certificate Eligibility Marks (%)"
+                    type="number"
+                    min={0}
+                    max={100}
+                    required
+                    error={errors.certEligibilityMarks?.message}
+                    {...register('certEligibilityMarks')}
+                  />
+                  <p className="text-[10px] text-[var(--text-secondary)] mt-2 leading-relaxed">
+                    Students must achieve at least these marks to become eligible for course certificate generation.
+                  </p>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="rounded-[18px] shadow-sm bg-white dark:bg-slate-900 border border-[var(--brand-border)] p-6">
+              <h3 className="text-sm font-bold text-[var(--text-primary)] mb-4 pb-3 border-b border-[var(--brand-border)] flex items-center gap-2.5">
+                <Users size={18} className="text-[#6C1D5F] dark:text-purple-400" />
+                Batch & Subject
+              </h3>
+              <div className="space-y-4">
+                {/* Searchable Batch Dropdown */}
+                <div className="relative">
+                  <label className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider block mb-1.5">
+                    Batch <span className="text-red-500">*</span>
+                  </label>
                   <button
                     type="button"
                     onClick={() => setBatchOpen(!batchOpen)}
-                    className="w-full bg-white dark:bg-[#1E293B] border border-[var(--brand-border)] focus:border-[#4A1F4F] text-[var(--text-primary)] rounded-xl py-2.5 px-3.5 text-left text-sm flex items-center justify-between cursor-pointer"
+                    className="w-full bg-white dark:bg-[#1E293B] border border-[var(--brand-border)] focus:border-[#6C1D5F] text-[var(--text-primary)] rounded-xl py-2.5 px-3.5 text-left text-sm flex items-center justify-between cursor-pointer"
                   >
                     <span className="truncate">{selectedBatchName || 'Select a batch'}</span>
                     <ChevronDown size={16} className="text-[var(--text-secondary)] shrink-0" />
                   </button>
-                </div>
-                {batchOpen && (
-                  <div className="absolute z-20 mt-1 w-full bg-white dark:bg-[#1E293B] border border-[var(--brand-border)] rounded-xl shadow-lg p-2 space-y-2">
-                    {batches.length > 5 && (
-                      <div className="relative">
-                        <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
-                        <input
-                          type="text"
-                          placeholder="Search batch..."
-                          value={batchSearch}
-                          onChange={(e) => setBatchSearch(e.target.value)}
-                          className="w-full bg-slate-50 dark:bg-slate-800 border border-[var(--brand-border)] focus:border-[#4A1F4F] rounded-lg py-1.5 pl-8 pr-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] transition-colors"
-                        />
-                      </div>
-                    )}
-                    <div className="max-h-60 overflow-y-auto space-y-1">
-                      {filteredBatches.length === 0 ? (
-                        <p className="text-xs text-[var(--text-secondary)] text-center py-2">No batches found</p>
-                      ) : (
-                        filteredBatches.map((b) => (
-                          <button
-                            key={b.id}
-                            type="button"
-                            onClick={() => {
-                              setValue('batchId', String(b.id));
-                              setSelectedBatchName(b.batchName);
-                              setBatchOpen(false);
-                            }}
-                            className={`w-full text-left px-3 py-2 rounded-lg text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors ${
-                              watchBatchId === String(b.id) ? 'bg-[#4A1F4F10] text-[#4A1F4F] font-semibold' : 'text-[var(--text-primary)]'
-                            }`}
-                          >
-                            {b.batchName}
-                          </button>
-                        ))
+                  {batchOpen && (
+                    <div className="absolute z-20 mt-1 w-full bg-white dark:bg-[#1E293B] border border-[var(--brand-border)] rounded-xl shadow-lg p-2 space-y-2">
+                      {batches.length > 5 && (
+                        <div className="relative">
+                          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
+                          <input
+                            type="text"
+                            placeholder="Search batch..."
+                            value={batchSearch}
+                            onChange={(e) => setBatchSearch(e.target.value)}
+                            className="w-full bg-slate-50 dark:bg-slate-800 border border-[var(--brand-border)] focus:border-[#6C1D5F] rounded-lg py-1.5 pl-8 pr-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] transition-colors"
+                          />
+                        </div>
                       )}
+                      <div className="max-h-60 overflow-y-auto space-y-1">
+                        {filteredBatches.length === 0 ? (
+                          <p className="text-xs text-[var(--text-secondary)] text-center py-2">No batches found</p>
+                        ) : (
+                          filteredBatches.map((b) => (
+                            <button
+                              key={b.id}
+                              type="button"
+                              onClick={() => {
+                                setValue('batchId', String(b.id));
+                                setSelectedBatchName(b.batchName);
+                                setBatchOpen(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 rounded-lg text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors ${
+                                watchBatchId === String(b.id) ? 'bg-[#6C1D5F10] text-[#6C1D5F] font-semibold' : 'text-[var(--text-primary)]'
+                              }`}
+                            >
+                              {b.batchName}
+                            </button>
+                          ))
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
-                {errors.batchId?.message && <p className="text-xs text-red-500 mt-1">{errors.batchId.message}</p>}
-              </div>
-
-              {/* Subject Selector - Shows only subject names */}
-              <Controller
-                name="subject"
-                control={control}
-                render={({ field }) => (
-                  <SubjectSelector
-                    value={field.value}
-                    onChange={field.onChange}
-                    error={errors.subject?.message}
-                    required
-                  />
-                )}
-              />
-              
-              <Textarea
-                label="Description"
-                placeholder="Describe what this assignment is about..."
-                required
-                rows={4}
-                error={errors.description?.message}
-                {...register('description')}
-              />
-              
-              <Textarea
-                label="Instructions (Optional)"
-                placeholder="Detailed instructions for students..."
-                rows={3}
-                error={errors.instructions?.message}
-                {...register('instructions')}
-              />
-            </div>
-          </Card>
-
-          <Card>
-            <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-4 pb-3 border-b border-[var(--brand-border)]">
-              Settings
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-              <Input
-                label="Due Date"
-                type="date"
-                required
-                min={today}
-                error={errors.dueDate?.message}
-                {...register('dueDate')}
-              />
-              <Input
-                label="Total Marks"
-                type="number"
-                min={1}
-                max={1000}
-                required
-                error={errors.maxMarks?.message}
-                {...register('maxMarks')}
-              />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input
-                label="Passing Marks"
-                type="number"
-                required
-                error={errors.passingMarks?.message}
-                {...register('passingMarks')}
-              />
-              <div>
-                <Input
-                  label="Certificate Eligibility Marks (%)"
-                  type="number"
-                  min={0}
-                  max={100}
-                  required
-                  error={errors.certEligibilityMarks?.message}
-                  {...register('certEligibilityMarks')}
-                />
-                <p className="text-[10px] text-[var(--text-secondary)] mt-1.5 leading-relaxed">
-                  Students must achieve at least these marks to become eligible for course certificate generation. Passing marks and certificate eligibility marks are independent.
-                </p>
-              </div>
-            </div>
-          </Card>
-
-          <Card>
-            <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-4 pb-3 border-b border-[var(--brand-border)]">
-              Attachment (Optional)
-            </h3>
-
-            {attachment ? (
-              <div className="flex items-center gap-3 p-4 rounded-xl bg-[#4A1F4F]/5 border border-[#4A1F4F]/20">
-                <span className="text-2xl">{getFileIcon(attachment.name)}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-[var(--text-primary)] truncate">{attachment.name}</p>
-                  <p className="text-xs text-[var(--text-secondary)]">{(attachment.size / 1024).toFixed(0)} KB</p>
+                  )}
+                  {errors.batchId?.message && <p className="text-xs text-red-500 mt-1">{errors.batchId.message}</p>}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setAttachment(null)}
-                  className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:bg-[#F5EAF8] hover:text-red-500 dark:hover:bg-[#F5EAF8]0/10 transition-colors cursor-pointer"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            ) : existingAttachment ? (
-              <div className="flex items-center gap-3 p-4 rounded-xl bg-blue-500/5 border border-blue-200 dark:border-teal-500/20">
-                <span className="text-2xl">{getFileIcon(existingAttachmentName || '')}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-[var(--text-primary)] truncate">{existingAttachmentName}</p>
-                  <p className="text-xs text-[var(--text-secondary)]">Currently uploaded resource</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setExistingAttachment(null)}
-                  className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:bg-[#F5EAF8] hover:text-red-500 dark:hover:bg-[#F5EAF8]0/10 transition-colors cursor-pointer"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            ) : (
-              <div
-                className={`drop-zone ${isDragging ? 'dragging' : ''} p-8 text-center cursor-pointer`}
-                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                onDragLeave={() => setIsDragging(false)}
-                onDrop={onDrop}
-                onClick={() => fileRef.current?.click()}
-              >
-                <div className="w-12 h-12 rounded-2xl bg-[#4A1F4F]/10 flex items-center justify-center mx-auto mb-3">
-                  <Upload size={22} className="text-[#4A1F4F] dark:text-purple-400" />
-                </div>
-                <p className="text-sm font-medium text-[var(--text-primary)]">
-                  Drop file here or <span className="text-[#4A1F4F] dark:text-purple-400">browse</span>
-                </p>
-                <p className="text-xs text-[var(--text-secondary)] mt-1">PDF, DOC, DOCX, ZIP, JPG, PNG · Max 25MB</p>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  className="hidden"
-                  accept=".pdf,.doc,.docx,.zip,.jpg,.jpeg,.png"
-                  onChange={(e) => { if (e.target.files?.[0]) handleFile(e.target.files[0]); }}
+
+                {/* Subject Selector */}
+                <Controller
+                  name="subject"
+                  control={control}
+                  render={({ field }) => (
+                    <SubjectSelector
+                      value={field.value}
+                      onChange={field.onChange}
+                      error={errors.subject?.message}
+                      required
+                    />
+                  )}
                 />
               </div>
-            )}
-          </Card>
+            </Card>
+          </div>
 
-          <div className="flex items-center gap-3 justify-end pt-2">
+          {/* Sticky Bottom Action Bar */}
+          <div className="fixed bottom-0 left-0 right-0 lg:pl-64 bg-white dark:bg-[#1E293B]/95 border-t border-[var(--brand-border)] py-4 px-6 md:px-8 shadow-[0_-4px_12px_rgba(0,0,0,0.05)] z-40 flex items-center justify-between backdrop-blur-sm select-none">
             <Button
               type="button"
               variant="outline"
               size="lg"
-              loading={isSubmitting}
-              onClick={() => handleSubmit((d: FormData) => onSubmit(d, 'draft'))()}
+              onClick={() => navigate('/teacher/assignments')}
+              disabled={isSubmitting}
             >
-              Save Draft
+              Cancel
             </Button>
-            <Button
-              type="button"
-              variant="primary"
-              size="lg"
-              loading={isSubmitting}
-              onClick={() => handleSubmit((d: FormData) => onSubmit(d, 'published'))()} 
-            >
-              {isEdit ? 'Save Changes' : 'Publish Assignment'}
-            </Button>
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                loading={isSubmitting}
+                onClick={() => handleSubmit((d: FormData) => onSubmit(d, 'draft'))()}
+              >
+                Save Draft
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                size="lg"
+                loading={isSubmitting}
+                onClick={() => handleSubmit((d: FormData) => onSubmit(d, 'published'))()} 
+              >
+                {isEdit ? 'Save Changes' : 'Publish Assignment'}
+              </Button>
+            </div>
           </div>
         </form>
       </div>

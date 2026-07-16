@@ -25,6 +25,8 @@ export interface Certificate {
   qrCodeUrl?: string;
   assignmentName?: string;
   maxMarks?: number;
+  courseId?: string;
+  courseTitle?: string;
 }
 
 export const certificateService = {
@@ -94,5 +96,24 @@ export const certificateService = {
     link.download = fileName;
     link.click();
     window.URL.revokeObjectURL(url);
+  },
+
+  getCourseCertificate: async (courseId: string): Promise<Certificate | null> => {
+    try {
+      const res = await api.get(`/student/certificates/course/${courseId}`);
+      return res.data.data;
+    } catch {
+      return null;
+    }
+  },
+
+  claimCourseCertificate: async (courseId: string): Promise<Certificate> => {
+    const res = await api.post(`/student/certificates/course/${courseId}/claim`);
+    return res.data.data;
+  },
+
+  getCourseCertificatePreview: async (courseId: string): Promise<Certificate> => {
+    const res = await api.get(`/student/certificates/course/${courseId}/preview`);
+    return res.data.data;
   }
 };

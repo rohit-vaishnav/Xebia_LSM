@@ -9,9 +9,11 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { authService } from '../../services/auth.service';
 import { useAuth } from '../../contexts/AuthContext';
+import { useAuth as useAdminAuth } from '@/hooks-lms/useAuth';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { getPublicBatches } from '../../store/batchSlice';
+import Logo from '../../components/ui-lms/Logo';
 
 const loginSchema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -39,13 +41,14 @@ export const AuthPage: React.FC = () => {
   const dispatch = useAppDispatch();
   const [searchParams] = useSearchParams();
   const { login } = useAuth();
+  const { login: adminLogin } = useAdminAuth() as any;
   const { isDark, toggle } = useTheme();
   
   const { batchList } = useAppSelector((state) => state.batch);
 
   // States
   const [isRegister, setIsRegister] = useState(false);
-  const [role, setRole] = useState<'student' | 'teacher'>('student');
+  const [role, setRole] = useState<'student' | 'teacher' | 'admin'>('student');
   const [showPassword, setShowPassword] = useState(false);
   const [forgotPasswordStep, setForgotPasswordStep] = useState<0 | 1 | 2>(0); // 0 = main auth, 1 = role selection, 2 = email form
   const [resetRole, setResetRole] = useState<'student' | 'teacher'>('student');
@@ -59,7 +62,7 @@ export const AuthPage: React.FC = () => {
   // Initialize role from search param if provided
   useEffect(() => {
     const roleParam = searchParams.get('role');
-    if (roleParam === 'teacher' || roleParam === 'student') {
+    if (roleParam === 'teacher' || roleParam === 'student' || roleParam === 'admin') {
       setRole(roleParam);
     }
   }, [searchParams]);
@@ -94,7 +97,12 @@ export const AuthPage: React.FC = () => {
   const handleLogin = async (data: LoginForm) => {
     try {
       let res;
-      if (role === 'teacher') {
+      const email = data.email.toLowerCase();
+      if (email.includes('admin')) {
+        const adminUser = await adminLogin(data.email, data.password);
+        toast.success(`Welcome back, ${adminUser.name || 'Admin'}!`);
+        navigate('/admin/dashboard');
+      } else if (email.includes('teacher')) {
         res = await authService.teacherLogin(data);
         login(res.user, res.token);
         toast.success(`Welcome back, ${res.user.name}!`);
@@ -106,7 +114,7 @@ export const AuthPage: React.FC = () => {
         navigate('/student/assignments');
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Login failed. Please check credentials.');
+      toast.error(err.response?.data?.message || err.message || 'Login failed. Please check credentials.');
     }
   };
 
@@ -136,57 +144,70 @@ export const AuthPage: React.FC = () => {
   };
 
   // Direct login for quick demo
-  const handleDirectLogin = async () => {
+  const handleStudentDirectLogin = async () => {
     try {
-      if (role === 'teacher') {
-        const res = await authService.teacherLogin({
-          email: 'teacher@school.edu',
-          password: 'password'
-        });
-        login(res.user, res.token);
-        toast.success(`Welcome back, ${res.user.name}!`);
-        navigate('/teacher/dashboard');
-      } else {
-        const res = await authService.studentLogin({
-          email: 'student@school.edu',
-          password: 'password'
-        });
-        login(res.user, res.token);
-        toast.success(`Welcome back, ${res.user.name}!`);
-        navigate('/student/assignments');
-      }
+      const res = await authService.studentLogin({
+        email: 'student@example.com',
+        password: 'password123'
+      });
+      login(res.user, res.token);
+      toast.success(`Welcome back, ${res.user.name}!`);
+      navigate('/student/assignments');
     } catch (err: any) {
-      // Auto-register demo account if missing
       try {
-        if (role === 'teacher') {
-          const regRes = await authService.teacherRegister({
-            name: 'Teacher User',
-            email: 'teacher@school.edu',
-            password: 'password',
-            subject: 'General'
-          });
-          login(regRes.user, regRes.token);
-          toast.success('Demo Teacher account created and logged in!');
-          navigate('/teacher/dashboard');
-        } else {
-          let batchId = 1;
-          if (batchList && batchList.length > 0) {
-            batchId = batchList[0].id;
-          }
-          const regRes = await authService.studentRegister({
-            name: 'Student User',
-            email: 'student@school.edu',
-            enrollmentNumber: 'ENR-DEMO-001',
-            batchId: batchId,
-            password: 'password'
-          });
-          login(regRes.user, regRes.token);
-          toast.success('Demo Student account created and logged in!');
-          navigate('/student/assignments');
+        let batchId = 1;
+        if (batchList && batchList.length > 0) {
+          batchId = batchList[0].id;
         }
+        const regRes = await authService.studentRegister({
+          name: 'Student User',
+          email: 'student@example.com',
+          enrollmentNumber: 'ENR-DEMO-001',
+          batchId: batchId,
+          password: 'password123'
+        });
+        login(regRes.user, regRes.token);
+        toast.success('Demo Student account created and logged in!');
+        navigate('/student/assignments');
       } catch {
-        toast.error('Quick login failed.');
+        toast.error('Quick Student login failed.');
       }
+    }
+  };
+
+  const handleTeacherDirectLogin = async () => {
+    try {
+      const res = await authService.teacherLogin({
+        email: 'teacher@example.com',
+        password: 'password123'
+      });
+      login(res.user, res.token);
+      toast.success(`Welcome back, ${res.user.name}!`);
+      navigate('/teacher/dashboard');
+    } catch (err: any) {
+      try {
+        const regRes = await authService.teacherRegister({
+          name: 'Teacher User',
+          email: 'teacher@example.com',
+          password: 'password123',
+          subject: 'General'
+        });
+        login(regRes.user, regRes.token);
+        toast.success('Demo Teacher account created and logged in!');
+        navigate('/teacher/dashboard');
+      } catch {
+        toast.error('Quick Teacher login failed.');
+      }
+    }
+  };
+
+  const handleAdminDirectLogin = async () => {
+    try {
+      const adminUser = await adminLogin('admin@xebia.com', 'admin123');
+      toast.success(`Welcome back, ${adminUser.name || 'Admin'}!`);
+      navigate('/admin/dashboard');
+    } catch (err: any) {
+      toast.error('Quick Admin login failed. Please verify admin credentials.');
     }
   };
 
@@ -225,14 +246,9 @@ export const AuthPage: React.FC = () => {
       <div className="relative z-10 w-full max-w-[460px] bg-white/80 dark:bg-slate-900/70 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800/80 p-6 sm:p-7 rounded-2xl shadow-2xl transition-all duration-300">
         
         {/* Logo and header */}
-        <div className="text-center space-y-1 mb-4 select-none">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#4A1F4F] to-[#2563EB] flex items-center justify-center mx-auto shadow-md">
-            <GraduationCap size={22} className="text-white" />
-          </div>
-          <h1 className="text-xl font-black text-slate-950 dark:text-white tracking-tight pt-1">
-            Xebia LMS
-          </h1>
-          <p className="text-xs text-slate-400 dark:text-slate-500">
+        <div className="flex flex-col items-center text-center space-y-2 mb-5 select-none">
+          <Logo className="scale-110 mb-1" subtitle="Portal" />
+          <p className="text-[11px] text-slate-400 dark:text-slate-500">
             Enterprise Learning Management System
           </p>
         </div>
@@ -308,31 +324,6 @@ export const AuthPage: React.FC = () => {
         ) : (
           /* Main Tabbed Auth Flow */
           <div className="space-y-4">
-            {/* Sliding Role Toggle at Top */}
-            <div className="flex bg-slate-100 dark:bg-slate-800/80 p-0.5 rounded-lg select-none w-full">
-              <button
-                type="button"
-                onClick={() => { setRole('student'); loginForm.reset(); }}
-                className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${
-                  role === 'student'
-                    ? 'bg-white dark:bg-slate-700 text-[#2563EB] shadow-sm'
-                    : 'text-slate-400 hover:text-[var(--text-primary)]'
-                }`}
-              >
-                Student Portal
-              </button>
-              <button
-                type="button"
-                onClick={() => { setRole('teacher'); loginForm.reset(); }}
-                className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${
-                  role === 'teacher'
-                    ? 'bg-white dark:bg-slate-700 text-[#4A1F4F] dark:text-purple-400 shadow-sm'
-                    : 'text-slate-400 hover:text-[var(--text-primary)]'
-                }`}
-              >
-                Teacher Portal
-              </button>
-            </div>
 
             {/* Sliding Auth Mode selector */}
             <div className="flex border-b border-slate-200 dark:border-slate-800/80 w-full mb-2">
@@ -362,166 +353,194 @@ export const AuthPage: React.FC = () => {
 
             {isRegister ? (
               /* SIGN UP FORMS */
-              role === 'student' ? (
-                /* Student Sign Up Form */
-                <form onSubmit={studentRegisterForm.handleSubmit(handleStudentRegister)} className="space-y-3.5">
-                  <Input
-                    label="Full Name"
-                    type="text"
-                    required
-                    placeholder="John Doe"
-                    leftIcon={<User size={14} />}
-                    error={studentRegisterForm.formState.errors.name?.message}
-                    {...studentRegisterForm.register('name')}
-                  />
-                  <Input
-                    label="Email Address"
-                    type="email"
-                    required
-                    placeholder="student@school.edu"
-                    leftIcon={<Mail size={14} />}
-                    error={studentRegisterForm.formState.errors.email?.message}
-                    {...studentRegisterForm.register('email')}
-                  />
-                  <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-4">
+                {/* Account Type Selector for Sign Up */}
+                <div className="flex bg-slate-100 dark:bg-slate-800/80 p-0.5 rounded-lg select-none w-full mb-3">
+                  <button
+                    type="button"
+                    onClick={() => setRole('student')}
+                    className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${
+                      role === 'student'
+                        ? 'bg-white dark:bg-slate-700 text-[#2563EB] shadow-sm'
+                        : 'text-slate-400 hover:text-[var(--text-primary)]'
+                    }`}
+                  >
+                    Student Account
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRole('teacher')}
+                    className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${
+                      role === 'teacher'
+                        ? 'bg-white dark:bg-slate-700 text-[#4A1F4F] dark:text-purple-450 shadow-sm'
+                        : 'text-slate-400 hover:text-[var(--text-primary)]'
+                    }`}
+                  >
+                    Teacher Account
+                  </button>
+                </div>
+
+                {role === 'student' ? (
+                  /* Student Sign Up Form */
+                  <form onSubmit={studentRegisterForm.handleSubmit(handleStudentRegister)} className="space-y-3.5">
                     <Input
-                      label="Enrollment Number"
+                      label="Full Name"
                       type="text"
                       required
-                      placeholder="ENR-1234"
-                      leftIcon={<Hash size={14} />}
-                      error={studentRegisterForm.formState.errors.enrollmentNumber?.message}
-                      {...studentRegisterForm.register('enrollmentNumber')}
+                      placeholder="John Doe"
+                      leftIcon={<User size={14} />}
+                      error={studentRegisterForm.formState.errors.name?.message}
+                      {...studentRegisterForm.register('name')}
                     />
                     <Input
-                      label="Phone (Optional)"
-                      type="tel"
-                      placeholder="9876543210"
-                      leftIcon={<Phone size={14} />}
-                      error={studentRegisterForm.formState.errors.phone?.message}
-                      {...studentRegisterForm.register('phone')}
+                      label="Email Address"
+                      type="email"
+                      required
+                      placeholder="student@school.edu"
+                      leftIcon={<Mail size={14} />}
+                      error={studentRegisterForm.formState.errors.email?.message}
+                      {...studentRegisterForm.register('email')}
                     />
-                  </div>
-
-                  {/* Searchable Batch Selector */}
-                  <div className="relative">
-                    <label className="block text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1">Batch / Class</label>
-                    <div 
-                      onClick={() => setBatchOpen(!batchOpen)}
-                      className="flex items-center justify-between w-full px-3 py-2 text-xs bg-white dark:bg-[#1E293B] border border-[var(--brand-border)] focus:border-[#4A1F4F] rounded-xl text-[var(--text-primary)] cursor-pointer select-none"
-                    >
-                      <span>{selectedBatchName || 'Select your batch...'}</span>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Input
+                        label="Enrollment Number"
+                        type="text"
+                        required
+                        placeholder="ENR-1234"
+                        leftIcon={<Hash size={14} />}
+                        error={studentRegisterForm.formState.errors.enrollmentNumber?.message}
+                        {...studentRegisterForm.register('enrollmentNumber')}
+                      />
+                      <Input
+                        label="Phone (Optional)"
+                        type="tel"
+                        placeholder="9876543210"
+                        leftIcon={<Phone size={14} />}
+                        error={studentRegisterForm.formState.errors.phone?.message}
+                        {...studentRegisterForm.register('phone')}
+                      />
                     </div>
-                    {batchOpen && (
-                      <div className="absolute left-0 right-0 z-30 mt-1.5 p-3.5 bg-white dark:bg-slate-900 border border-[var(--brand-border)] rounded-2xl shadow-xl space-y-2">
-                        <div className="relative">
-                          <input
-                            type="text"
-                            placeholder="Search batch..."
-                            value={batchSearch}
-                            onChange={(e) => setBatchSearch(e.target.value)}
-                            className="w-full bg-slate-50 dark:bg-slate-800 border border-[var(--brand-border)] rounded-lg py-1 px-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] transition-colors focus:outline-none"
-                          />
-                        </div>
-                        <div className="max-h-36 overflow-y-auto space-y-1">
-                          {filteredBatches.length === 0 ? (
-                            <p className="text-[10px] text-[var(--text-secondary)] text-center py-2">No batches found</p>
-                          ) : (
-                            filteredBatches.map((b) => (
-                              <button
-                                key={b.id}
-                                type="button"
-                                onClick={() => {
-                                  studentRegisterForm.setValue('batchId', String(b.id));
-                                  setSelectedBatchName(b.batchName);
-                                  setBatchOpen(false);
-                                }}
-                                className={`w-full text-left px-2 py-1.5 rounded-lg text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors ${
-                                  watchBatchId === String(b.id) ? 'bg-[#4A1F4F10] text-[#4A1F4F] font-semibold' : 'text-[var(--text-primary)]'
-                                }`}
-                              >
-                                {b.batchName}
-                              </button>
-                            ))
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    {studentRegisterForm.formState.errors.batchId?.message && (
-                      <p className="text-[10px] text-red-500 mt-1">{studentRegisterForm.formState.errors.batchId.message}</p>
-                    )}
-                  </div>
 
-                  <Input
-                    label="Password"
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    placeholder="At least 6 characters"
-                    leftIcon={<Lock size={14} />}
-                    rightIcon={
-                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="cursor-pointer">
-                        {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-                      </button>
-                    }
-                    error={studentRegisterForm.formState.errors.password?.message}
-                    {...studentRegisterForm.register('password')}
-                  />
-                  <div className="pt-2">
-                    <Button type="submit" variant="brand" className="w-full h-11 text-xs font-bold cursor-pointer" loading={studentRegisterForm.formState.isSubmitting}>
-                      Register Student Account
-                    </Button>
-                  </div>
-                </form>
-              ) : (
-                /* Teacher Sign Up Form */
-                <form onSubmit={teacherRegisterForm.handleSubmit(handleTeacherRegister)} className="space-y-4">
-                  <Input
-                    label="Full Name"
-                    type="text"
-                    required
-                    placeholder="Professor Miller"
-                    leftIcon={<User size={14} />}
-                    error={teacherRegisterForm.formState.errors.name?.message}
-                    {...teacherRegisterForm.register('name')}
-                  />
-                  <Input
-                    label="Email Address"
-                    type="email"
-                    required
-                    placeholder="teacher@school.edu"
-                    leftIcon={<Mail size={14} />}
-                    error={teacherRegisterForm.formState.errors.email?.message}
-                    {...teacherRegisterForm.register('email')}
-                  />
-                  <Input
-                    label="Primary Subject (Optional)"
-                    type="text"
-                    placeholder="Computer Science"
-                    leftIcon={<GraduationCap size={14} />}
-                    error={teacherRegisterForm.formState.errors.subject?.message}
-                    {...teacherRegisterForm.register('subject')}
-                  />
-                  <Input
-                    label="Password"
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    placeholder="At least 6 characters"
-                    leftIcon={<Lock size={14} />}
-                    rightIcon={
-                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="cursor-pointer">
-                        {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-                      </button>
-                    }
-                    error={teacherRegisterForm.formState.errors.password?.message}
-                    {...teacherRegisterForm.register('password')}
-                  />
-                  <div className="pt-2">
-                    <Button type="submit" variant="brand" className="w-full h-11 text-xs font-bold cursor-pointer" loading={teacherRegisterForm.formState.isSubmitting}>
-                      Register Teacher Account
-                    </Button>
-                  </div>
-                </form>
-              )
+                    {/* Searchable Batch Selector */}
+                    <div className="relative">
+                      <label className="block text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1">Batch / Class</label>
+                      <div 
+                        onClick={() => setBatchOpen(!batchOpen)}
+                        className="flex items-center justify-between w-full px-3 py-2 text-xs bg-white dark:bg-[#1E293B] border border-[var(--brand-border)] focus:border-[#4A1F4F] rounded-xl text-[var(--text-primary)] cursor-pointer select-none"
+                      >
+                        <span>{selectedBatchName || 'Select your batch...'}</span>
+                      </div>
+                      {batchOpen && (
+                        <div className="absolute left-0 right-0 z-30 mt-1.5 p-3.5 bg-white dark:bg-slate-900 border border-[var(--brand-border)] rounded-2xl shadow-xl space-y-2">
+                          <div className="relative">
+                            <input
+                              type="text"
+                              placeholder="Search batch..."
+                              value={batchSearch}
+                              onChange={(e) => setBatchSearch(e.target.value)}
+                              className="w-full bg-slate-50 dark:bg-slate-800 border border-[var(--brand-border)] rounded-lg py-1 px-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] transition-colors focus:outline-none"
+                            />
+                          </div>
+                          <div className="max-h-36 overflow-y-auto space-y-1">
+                            {filteredBatches.length === 0 ? (
+                              <p className="text-[10px] text-[var(--text-secondary)] text-center py-2">No batches found</p>
+                            ) : (
+                              filteredBatches.map((b) => (
+                                <button
+                                  key={b.id}
+                                  type="button"
+                                  onClick={() => {
+                                    studentRegisterForm.setValue('batchId', String(b.id));
+                                    setSelectedBatchName(b.batchName);
+                                    setBatchOpen(false);
+                                  }}
+                                  className={`w-full text-left px-2 py-1.5 rounded-lg text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors ${
+                                    watchBatchId === String(b.id) ? 'bg-[#4A1F4F10] text-[#4A1F4F] font-semibold' : 'text-[var(--text-primary)]'
+                                  }`}
+                                >
+                                  {b.batchName}
+                                </button>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {studentRegisterForm.formState.errors.batchId?.message && (
+                        <p className="text-[10px] text-red-500 mt-1">{studentRegisterForm.formState.errors.batchId.message}</p>
+                      )}
+                    </div>
+
+                    <Input
+                      label="Password"
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      placeholder="At least 6 characters"
+                      leftIcon={<Lock size={14} />}
+                      rightIcon={
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="cursor-pointer">
+                          {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
+                      }
+                      error={studentRegisterForm.formState.errors.password?.message}
+                      {...studentRegisterForm.register('password')}
+                    />
+                    <div className="pt-2">
+                      <Button type="submit" variant="brand" className="w-full h-11 text-xs font-bold cursor-pointer" loading={studentRegisterForm.formState.isSubmitting}>
+                        Register Student Account
+                      </Button>
+                    </div>
+                  </form>
+                ) : (
+                  /* Teacher Sign Up Form */
+                  <form onSubmit={teacherRegisterForm.handleSubmit(handleTeacherRegister)} className="space-y-4">
+                    <Input
+                      label="Full Name"
+                      type="text"
+                      required
+                      placeholder="Professor Miller"
+                      leftIcon={<User size={14} />}
+                      error={teacherRegisterForm.formState.errors.name?.message}
+                      {...teacherRegisterForm.register('name')}
+                    />
+                    <Input
+                      label="Email Address"
+                      type="email"
+                      required
+                      placeholder="teacher@school.edu"
+                      leftIcon={<Mail size={14} />}
+                      error={teacherRegisterForm.formState.errors.email?.message}
+                      {...teacherRegisterForm.register('email')}
+                    />
+                    <Input
+                      label="Primary Subject (Optional)"
+                      type="text"
+                      placeholder="Computer Science"
+                      leftIcon={<GraduationCap size={14} />}
+                      error={teacherRegisterForm.formState.errors.subject?.message}
+                      {...teacherRegisterForm.register('subject')}
+                    />
+                    <Input
+                      label="Password"
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      placeholder="At least 6 characters"
+                      leftIcon={<Lock size={14} />}
+                      rightIcon={
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="cursor-pointer">
+                          {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
+                      }
+                      error={teacherRegisterForm.formState.errors.password?.message}
+                      {...teacherRegisterForm.register('password')}
+                    />
+                    <div className="pt-2">
+                      <Button type="submit" variant="brand" className="w-full h-11 text-xs font-bold cursor-pointer" loading={teacherRegisterForm.formState.isSubmitting}>
+                        Register Teacher Account
+                      </Button>
+                    </div>
+                  </form>
+                )}
+              </div>
             ) : (
               /* SIGN IN FORM (Unified Email/Password) */
               <form onSubmit={loginForm.handleSubmit(handleLogin)} className="space-y-4">
@@ -529,7 +548,7 @@ export const AuthPage: React.FC = () => {
                   label="Email"
                   type="email"
                   required
-                  placeholder={`${role}@school.edu`}
+                  placeholder="student@example.com"
                   leftIcon={<Mail size={14} />}
                   error={loginForm.formState.errors.email?.message}
                   {...loginForm.register('email')}
@@ -561,18 +580,37 @@ export const AuthPage: React.FC = () => {
                   />
                 </div>
 
-                <div className="pt-2 space-y-2">
+                <div className="pt-2 space-y-3">
                   <Button type="submit" variant="brand" className="w-full h-11 text-xs font-bold cursor-pointer" loading={loginForm.formState.isSubmitting}>
                     Sign In
                   </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full h-11 text-xs font-bold border-[#2563EB]/25 text-[#2563EB] hover:bg-[#2563EB]/5 cursor-pointer"
-                    onClick={handleDirectLogin}
-                  >
-                    Quick Direct {role === 'teacher' ? 'Teacher' : 'Student'} Login (Demo)
-                  </Button>
+                  
+                  <div className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-9 text-[10px] font-bold border-blue-500/25 text-[#2563EB] hover:bg-[#2563EB]/5 cursor-pointer px-1 flex items-center justify-center"
+                      onClick={handleStudentDirectLogin}
+                    >
+                      Student
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-9 text-[10px] font-bold border-purple-500/25 text-[#4A1F4F] dark:text-purple-450 hover:bg-[#4A1F4F]/5 cursor-pointer px-1 flex items-center justify-center"
+                      onClick={handleTeacherDirectLogin}
+                    >
+                      Teacher
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-9 text-[10px] font-bold border-teal-500/25 text-teal-600 hover:bg-teal-600/5 cursor-pointer px-1 flex items-center justify-center"
+                      onClick={handleAdminDirectLogin}
+                    >
+                      Admin
+                    </Button>
+                  </div>
                 </div>
               </form>
             )}

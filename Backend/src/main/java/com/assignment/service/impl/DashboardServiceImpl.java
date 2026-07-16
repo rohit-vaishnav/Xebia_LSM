@@ -93,29 +93,25 @@ public class DashboardServiceImpl implements DashboardService {
         }
 
         String batchName = student.getBatch() != null ? student.getBatch().getBatchName() : "No Batch Assigned";
-
-        if (student.getBatch() == null) {
-            return StudentDashboardResponse.builder()
-                    .studentName(student.getFullName())
-                    .batch(batchName)
-                    .totalAssignments(0)
-                    .submittedAssignments(0)
-                    .pendingAssignments(0)
-                    .recentAssignments(List.of())
-                    .recentSubmissions(List.of())
-                    .upcomingDeadlines(List.of())
-                    .build();
-        }
-
-        Long batchId = student.getBatch().getId();
         Long studentId = student.getId();
 
-        long totalAssignments = assignmentRepository.countByBatchIdAndStatus(batchId, AssignmentStatus.ACTIVE);
+        long totalAssignments = assignmentRepository.countByBatchIdIsNullAndStatus(AssignmentStatus.ACTIVE);
+        if (student.getBatch() != null) {
+            totalAssignments += assignmentRepository.countByBatchIdAndStatus(student.getBatch().getId(), AssignmentStatus.ACTIVE);
+        }
+
         long submittedAssignments = submissionRepository.countByStudentId(studentId);
         long pendingAssignments = Math.max(0, totalAssignments - submittedAssignments);
 
-        List<Assignment> recentList = assignmentRepository.findTop5ByBatchIdAndStatusOrderByCreatedAtDesc(batchId, AssignmentStatus.ACTIVE);
+        // Recent Assignments
+        List<Assignment> recentList = new java.util.ArrayList<>();
+        recentList.addAll(assignmentRepository.findTop5ByBatchIdIsNullAndStatusOrderByCreatedAtDesc(AssignmentStatus.ACTIVE));
+        if (student.getBatch() != null) {
+            recentList.addAll(assignmentRepository.findTop5ByBatchIdAndStatusOrderByCreatedAtDesc(student.getBatch().getId(), AssignmentStatus.ACTIVE));
+        }
+        recentList.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
         List<StudentDashboardResponse.RecentAssignment> recentAssignments = recentList.stream()
+                .limit(5)
                 .map(a -> StudentDashboardResponse.RecentAssignment.builder()
                         .id(a.getId())
                         .title(a.getTitle())
@@ -123,17 +119,23 @@ public class DashboardServiceImpl implements DashboardService {
                         .build())
                 .collect(Collectors.toList());
 
+        // Recent Submissions
         List<Submission> recentSubList = submissionRepository.findTop5ByStudentIdOrderBySubmittedAtDesc(studentId);
         List<StudentDashboardResponse.RecentSubmission> recentSubmissions = recentSubList.stream()
                 .map(s -> StudentDashboardResponse.RecentSubmission.builder()
-                        .assignment(s.getAssignment().getTitle())
+                        .assignment(s.getAssignment() != null ? s.getAssignment().getTitle() : "LMS Content")
                         .status(s.getStatus().name())
                         .marks(s.getMarks())
                         .build())
                 .collect(Collectors.toList());
 
-        List<Assignment> upcomingList = assignmentRepository
-                .findByBatchIdAndStatusAndDueDateGreaterThanEqualOrderByDueDateAscDueTimeAsc(batchId, AssignmentStatus.ACTIVE, LocalDate.now());
+        // Upcoming Deadlines
+        List<Assignment> upcomingList = new java.util.ArrayList<>();
+        upcomingList.addAll(assignmentRepository.findByBatchIdIsNullAndStatusAndDueDateGreaterThanEqualOrderByDueDateAscDueTimeAsc(AssignmentStatus.ACTIVE, LocalDate.now()));
+        if (student.getBatch() != null) {
+            upcomingList.addAll(assignmentRepository.findByBatchIdAndStatusAndDueDateGreaterThanEqualOrderByDueDateAscDueTimeAsc(student.getBatch().getId(), AssignmentStatus.ACTIVE, LocalDate.now()));
+        }
+        upcomingList.sort((a, b) -> a.getDueDate().compareTo(b.getDueDate()));
         List<StudentDashboardResponse.UpcomingDeadline> upcomingDeadlines = upcomingList.stream()
                 .limit(5)
                 .map(a -> StudentDashboardResponse.UpcomingDeadline.builder()

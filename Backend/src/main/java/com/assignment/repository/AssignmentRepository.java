@@ -30,4 +30,9 @@ public interface AssignmentRepository extends JpaRepository<Assignment, Long> {
     List<Assignment> findTop5ByBatchIdAndStatusOrderByCreatedAtDesc(Long batchId, AssignmentStatus status);
     List<Assignment> findByBatchIdAndDueDateGreaterThanEqualOrderByDueDateAscDueTimeAsc(Long batchId, LocalDate date);
     List<Assignment> findByBatchIdAndStatusAndDueDateGreaterThanEqualOrderByDueDateAscDueTimeAsc(Long batchId, AssignmentStatus status, LocalDate date);
+
+    List<Assignment> findByBatchIdIsNullAndStatus(AssignmentStatus status);
+    long countByBatchIdIsNullAndStatus(AssignmentStatus status);
+    List<Assignment> findTop5ByBatchIdIsNullAndStatusOrderByCreatedAtDesc(AssignmentStatus status);
+    List<Assignment> findByBatchIdIsNullAndStatusAndDueDateGreaterThanEqualOrderByDueDateAscDueTimeAsc(AssignmentStatus status, LocalDate date);
 }

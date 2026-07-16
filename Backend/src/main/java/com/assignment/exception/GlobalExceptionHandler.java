@@ -1,51 +1,53 @@
 package com.assignment.exception;
 
-import com.assignment.dto.response.ApiResponse;
+import com.assignment.response.ApiResponse;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.util.stream.Collectors;
+import java.util.HashMap;
+import java.util.Map;
 
-@RestControllerAdvice
+@ControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(CustomException.class)
-    public ResponseEntity<ApiResponse<Void>> handleCustomException(CustomException ex) {
-        ApiResponse<Void> response = ApiResponse.error(ex.getMessage(), ex.getStatus());
-        return ResponseEntity.status(ex.getStatus()).body(response);
+    // Handle resource not found exceptions
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ApiResponse> handleResourceNotFoundException(ResourceNotFoundException ex) {
+        ApiResponse response = new ApiResponse(ex.getMessage(), null);
+        return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
     }
 
+    // Handle validation errors
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiResponse<Void>> handleValidationException(MethodArgumentNotValidException ex) {
-        String message = ex.getBindingResult().getFieldErrors().stream()
-                .map(FieldError::getDefaultMessage)
-                .collect(Collectors.joining("; "));
-        
-        ApiResponse<Void> response = ApiResponse.error("Validation failed: " + message, 400);
-        return ResponseEntity.status(400).body(response);
+    public ResponseEntity<ApiResponse> handleValidationException(MethodArgumentNotValidException ex) {
+        Map<String, String> errors = new HashMap<>();
+        ex.getBindingResult().getAllErrors().forEach((error) -> {
+            String fieldName = ((FieldError) error).getField();
+            String errorMessage = error.getDefaultMessage();
+            errors.put(fieldName, errorMessage);
+        });
+
+        ApiResponse response = new ApiResponse("Validation failed", errors);
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
 
-    @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<ApiResponse<Void>> handleAccessDeniedException(AccessDeniedException ex) {
-        ApiResponse<Void> response = ApiResponse.error("Access denied: " + ex.getMessage(), 403);
-        return ResponseEntity.status(403).body(response);
+    // Handle illegal arguments (bad request)
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiResponse> handleIllegalArgumentException(IllegalArgumentException ex) {
+        ApiResponse response = new ApiResponse(ex.getMessage(), null);
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
 
-    @ExceptionHandler(AuthenticationException.class)
-    public ResponseEntity<ApiResponse<Void>> handleAuthenticationException(AuthenticationException ex) {
-        ApiResponse<Void> response = ApiResponse.error("Authentication failed: " + ex.getMessage(), 401);
-        return ResponseEntity.status(401).body(response);
-    }
-
+    // Handle all other exceptions (fallback)
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<Void>> handleGeneralException(Exception ex) {
-        ex.printStackTrace(); // Log details in output stream for debugging
-        ApiResponse<Void> response = ApiResponse.error("An internal server error occurred: " + ex.getMessage(), 500);
-        return ResponseEntity.status(500).body(response);
+    public ResponseEntity<ApiResponse> handleGlobalException(Exception ex) {
+        ex.printStackTrace(); // Log stack trace to console
+        ApiResponse response = new ApiResponse("An unexpected error occurred: " + ex.getMessage(), null);
+        return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }
+

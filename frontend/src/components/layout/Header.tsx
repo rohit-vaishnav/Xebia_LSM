@@ -4,6 +4,8 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { getInitials } from '../../utils/helpers';
 
+import { Link } from 'react-router-dom';
+
 interface HeaderProps {
   title: string;
   subtitle?: string;
@@ -13,9 +15,16 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ title, subtitle, onMenuToggle }) => {
   const { isDark, toggle } = useTheme();
   const { user } = useAuth();
+  
+  const dashboardPath = user?.role === 'teacher' ? '/teacher/dashboard' : '/student/dashboard';
 
   return (
     <header className="sticky top-0 z-30 h-16 flex items-center px-6 md:px-8 bg-[var(--brand-surface)]/80 dark:bg-[#0B0F19]/80 backdrop-blur-md">
+      {/* Desktop click logo */}
+      <Link to={dashboardPath} className="hidden lg:flex items-center gap-2 mr-4 hover:opacity-90 transition-opacity shrink-0">
+        <img src="/xebia_logo.png" alt="Xebia" className="h-6 w-auto object-contain" />
+      </Link>
+
       {/* Mobile menu button */}
       <button
         onClick={onMenuToggle}
@@ -23,6 +32,11 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle, onMenuToggle })
       >
         <Menu size={20} />
       </button>
+
+      {/* Mobile click logo */}
+      <Link to={dashboardPath} className="lg:hidden flex items-center gap-2 mr-3 hover:opacity-90 transition-opacity shrink-0">
+        <img src="/xebia_logo.png" alt="Xebia" className="h-5 w-auto object-contain" />
+      </Link>
 
       {/* Page title */}
       <div className="flex-1 min-w-0">

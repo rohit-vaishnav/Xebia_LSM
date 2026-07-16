@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, Link } from 'react-router-dom';
 import {
   LayoutDashboard,
   FileText,
@@ -13,6 +13,12 @@ import {
   Users,
   HelpCircle,
   Award,
+  PlayCircle,
+  MessageSquare,
+  Trophy,
+  Bell,
+  Settings,
+  Calendar,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { getInitials } from '../../utils/helpers';
@@ -36,16 +42,21 @@ const teacherNav: NavItem[] = [
   { to: '/teacher/quizzes', icon: <HelpCircle size={18} />, label: 'Quiz' },
   { to: '/teacher/submitted', icon: <ClipboardList size={18} />, label: 'Submitted' },
   { to: '/teacher/certificates', icon: <Award size={18} />, label: 'Certificates Issued' },
+  { to: '/teacher/events', icon: <Calendar size={18} />, label: 'Events' },
   { to: '/teacher/profile', icon: <User size={18} />, label: 'Profile' },
 ];
 
 const studentNav: NavItem[] = [
   { to: '/student/dashboard', icon: <LayoutDashboard size={18} />, label: 'Dashboard' },
-  { to: '/student/assignments', icon: <BookOpen size={18} />, label: 'Assignments' },
+  { to: '/student/courses', icon: <BookOpen size={18} />, label: 'Browse Courses' },
+  { to: '/student/learning-content', icon: <PlayCircle size={18} />, label: 'Learning Content' },
+  { to: '/student/assignments', icon: <FileText size={18} />, label: 'Assignments' },
   { to: '/student/quizzes', icon: <HelpCircle size={18} />, label: 'Quiz' },
   { to: '/student/progress', icon: <TrendingUp size={18} />, label: 'Learning Progress' },
   { to: '/student/certificates', icon: <Award size={18} />, label: 'Certificates' },
-  { to: '/student/profile', icon: <User size={18} />, label: 'Profile' },
+  { to: '/student/discussion', icon: <MessageSquare size={18} />, label: 'Discussion Forum' },
+  { to: '/student/leaderboard', icon: <Trophy size={18} />, label: 'Leaderboard' },
+  { to: '/student/events', icon: <Calendar size={18} />, label: 'Events' },
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ role, isMobileOpen, onClose }) => {
@@ -83,18 +94,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ role, isMobileOpen, onClose })
           ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
       >
-        {/* Logo - Premium Xebia corporate brand section */}
+        {/* Logo - Clickable Xebia corporate brand section */}
         <div className="bg-[#4A1F4F] border-b border-[#622865] p-5">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center">
-                <GraduationCap size={20} className="text-[#4A1F4F]" />
-              </div>
+            <Link to={role === 'teacher' ? '/teacher/dashboard' : '/student/dashboard'} className="flex items-center gap-3 hover:opacity-90 transition-opacity">
+              <img src="/xebia_logo.png" alt="Xebia Logo" className="w-10 h-10 object-contain shrink-0" />
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-purple-200/60">Xebia LMS</p>
-                <p className="text-sm font-black text-white tracking-wide">{portalLabel}</p>
+                <p className="text-xs font-black text-white tracking-wide">Xebia LMS</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-purple-200/60">{portalLabel}</p>
               </div>
-            </div>
+            </Link>
             <button
               onClick={onClose}
               className="lg:hidden text-purple-200/70 hover:text-white cursor-pointer"

@@ -222,4 +222,33 @@ public class CertificateController {
         
         return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
     }
+
+    // --- Course Level Certificate Endpoints ---
+
+    @PostMapping("/api/student/certificates/course/{courseId}/claim")
+    public ResponseEntity<ApiResponse<CertificateResponse>> claimCourseCertificate(
+            @PathVariable Long courseId,
+            Principal principal
+    ) {
+        CertificateResponse response = certificateService.claimCourseCertificate(courseId, principal.getName());
+        return ResponseEntity.ok(ApiResponse.success("Course certificate claimed successfully", response));
+    }
+
+    @GetMapping("/api/student/certificates/course/{courseId}")
+    public ResponseEntity<ApiResponse<CertificateResponse>> getCourseCertificate(
+            @PathVariable Long courseId,
+            Principal principal
+    ) {
+        CertificateResponse response = certificateService.getCourseCertificate(courseId, principal.getName());
+        return ResponseEntity.ok(ApiResponse.success("Course certificate retrieved successfully", response));
+    }
+
+    @GetMapping("/api/student/certificates/course/{courseId}/preview")
+    public ResponseEntity<ApiResponse<CertificateResponse>> getCourseCertificatePreview(
+            @PathVariable Long courseId,
+            Principal principal
+    ) {
+        CertificateResponse response = certificateService.getCourseCertificatePreview(courseId, principal.getName());
+        return ResponseEntity.ok(ApiResponse.success("Course certificate preview retrieved successfully", response));
+    }
 }

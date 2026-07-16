@@ -16,6 +16,8 @@ public class CertificateResponse {
     private String assignmentTitle;
     private Long quizId;
     private String quizTitle;
+    private Long courseId;
+    private String courseTitle;
     private String certificateUrl;
     private String cloudinaryPublicId;
     private Double marks;

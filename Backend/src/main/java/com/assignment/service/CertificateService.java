@@ -17,4 +17,9 @@ public interface CertificateService {
     byte[] downloadOrGenerateCertificate(Long assignmentOrQuizId, String studentEmail);
     CertificateResponse getCertificateByUuid(String uuid, String email, String role);
     byte[] downloadCertificateByUuid(String idOrUuid, String studentEmail);
+
+    // Course level certificate claim and preview
+    CertificateResponse claimCourseCertificate(Long courseId, String studentEmail);
+    CertificateResponse getCourseCertificate(Long courseId, String studentEmail);
+    CertificateResponse getCourseCertificatePreview(Long courseId, String studentEmail);
 }

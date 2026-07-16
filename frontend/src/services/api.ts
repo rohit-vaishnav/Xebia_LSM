@@ -8,13 +8,14 @@ const api = axios.create({
   withCredentials: true,
 });
 
-// ─── Response Interceptor ────────────────────────────────────────────────────
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('lms_user');
-      window.location.href = '/';
+      if (window.location.pathname !== '/' && window.location.pathname !== '/student/login' && window.location.pathname !== '/admin/login') {
+        window.location.href = '/';
+      }
     }
     return Promise.reject(error);
   }

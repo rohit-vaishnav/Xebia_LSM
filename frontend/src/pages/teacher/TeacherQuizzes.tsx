@@ -4,7 +4,7 @@ import {
   Plus, Search, Eye, Edit, Trash2, HelpCircle, Upload, 
   ArrowLeft, ArrowUp, ArrowDown, Copy, Settings, Check, 
   AlertTriangle, FileSpreadsheet, Download, RefreshCw,
-  Calendar, Clock, Users, CheckCircle2 
+  Calendar, Clock, Users, CheckCircle2, FileText, Award 
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Layout } from '../../components/layout/Layout';
@@ -682,7 +682,7 @@ export const TeacherQuizzes: React.FC = () => {
                                 newList.sort();
                                 setActiveBuilderQuestion({ ...activeBuilderQuestion, correctAnswer: newList.join(',') });
                               }}
-                              className="rounded border-[var(--brand-border)] text-[#4A1F4F] focus:ring-[#4A1F4F] shrink-0"
+                              className="rounded border-[var(--brand-border)] text-[#6C1D5F] focus:ring-[#6C1D5F] shrink-0"
                             />
                             <span>{val}</span>
                           </label>
@@ -709,7 +709,7 @@ export const TeacherQuizzes: React.FC = () => {
                       value={activeBuilderQuestion.correctAnswer}
                       onChange={(e) => setActiveBuilderQuestion({ ...activeBuilderQuestion, correctAnswer: e.target.value })}
                       placeholder="Enter correct text answer..."
-                      className="w-full bg-white dark:bg-[#1E293B] border border-[var(--brand-border)] focus:border-[#4A1F4F] text-[var(--text-primary)] rounded-xl py-2 px-3 text-xs transition-colors focus:outline-none"
+                      className="w-full bg-white dark:bg-[#1E293B] border border-[var(--brand-border)] focus:border-[#6C1D5F] text-[var(--text-primary)] rounded-xl py-2 px-3 text-xs transition-colors focus:outline-none"
                     />
                   )}
                 </div>
@@ -811,7 +811,7 @@ export const TeacherQuizzes: React.FC = () => {
     const pageTitle = isEditMode ? 'Edit Quiz' : 'Create Quiz';
     return (
       <Layout role="teacher" title={pageTitle} subtitle="Fill in the details below">
-        <div className="max-w-3xl mx-auto space-y-6 select-none animate-fadeIn">
+        <div className="max-w-7xl mx-auto pb-24 px-4 sm:px-6 lg:px-8 select-none animate-fadeIn">
           {/* Back button */}
           <button
             type="button"
@@ -821,353 +821,60 @@ export const TeacherQuizzes: React.FC = () => {
             <ArrowLeft size={16} /> Back to Quizzes
           </button>
 
-          {/* Quiz Information Card */}
-          <Card className="bg-white dark:bg-[#1E293B] border border-slate-100 dark:border-slate-800/80 rounded-[16px] p-6 shadow-sm">
-            <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-4 pb-3 border-b border-[var(--brand-border)]">
-              Quiz Information
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="md:col-span-2">
-                <Input label="Quiz Title" placeholder="e.g. Midterm Physics Evaluation" required value={quizTitle} onChange={(e) => setQuizTitle(e.target.value)} />
-              </div>
-              <div className="md:col-span-2">
-                <Select
-                  label="Subject"
-                  value={quizSubject}
-                  onChange={(e) => setQuizSubject(e.target.value)}
-                  options={SUBJECTS.filter(s => s !== 'All').map(s => ({ value: s, label: s }))}
-                />
-              </div>
-              <div className="md:col-span-2">
-                <Input label="Topic / Category" placeholder="e.g. Gravitation" value={quizTopic} onChange={(e) => setQuizTopic(e.target.value)} />
-              </div>
-              <div>
-                <Input label="Due Date" type="date" min={todayDate} required value={quizDueDate} onChange={(e) => setQuizDueDate(e.target.value)} />
-              </div>
-              <div>
-                <Input label="Passing Marks (%)" type="number" min={10} max={100} value={String(passingPercentage)} onChange={(e) => setPassingPercentage(Number(e.target.value))} />
-              </div>
-              <div>
-                <Input label="Certificate Eligibility Marks (%)" type="number" min={10} max={100} value={String(quizCertEligibilityMarks)} onChange={(e) => setQuizCertEligibilityMarks(Number(e.target.value))} />
-              </div>
-              <div>
-                <Input label="Time Limit (Mins)" type="number" min={5} value={String(quizTimeLimit)} onChange={(e) => setQuizTimeLimit(Number(e.target.value))} />
-              </div>
-              <div>
-                <Input label="Attempts Allowed" type="number" min={1} value={String(quizAttempts)} onChange={(e) => setQuizAttempts(Number(e.target.value))} />
-              </div>
-              <p className="text-[10px] text-[var(--text-secondary)] mt-1.5 leading-relaxed md:col-span-2 select-none">
-                Students must achieve at least these marks to become eligible for course certificate generation. Passing marks and certificate eligibility marks are independent.
-              </p>
-              <div className="md:col-span-2">
-                <Select
-                  label="Difficulty Level"
-                  value={quizDifficulty}
-                  onChange={(e) => setQuizDifficulty(e.target.value as any)}
-                  options={[
-                    { value: 'Easy', label: 'Easy' },
-                    { value: 'Medium', label: 'Medium' },
-                    { value: 'Hard', label: 'Hard' }
-                  ]}
-                />
-              </div>
-              <div className="md:col-span-2">
-                <Textarea label="Instructions" placeholder="Specific instructions for candidates..." rows={3} value={quizInstructions} onChange={(e) => setQuizInstructions(e.target.value)} />
-              </div>
-              <div className="md:col-span-2">
-                <Textarea label="Description" placeholder="Enter short quiz description..." rows={3} value={quizDescription} onChange={(e) => setQuizDescription(e.target.value)} />
-              </div>
-
-              {/* Target Batches Checklist */}
-              <div className="md:col-span-2 space-y-2">
-                <label className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider block">
-                  Target Batches
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto border border-slate-100 dark:border-slate-800/80 p-3 rounded-xl bg-slate-50/50 dark:bg-slate-800/20 shadow-inner">
-                  {batches.length === 0 ? (
-                    <p className="text-xs text-[var(--text-secondary)] italic col-span-full">No batches available.</p>
-                  ) : (
-                    batches.map((b) => {
-                      const isChecked = quizBatchIds.includes(String(b.id));
-                      return (
-                        <label key={b.id} className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-100/50 dark:hover:bg-slate-800/50 cursor-pointer text-xs text-[var(--text-primary)] transition-all select-none">
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => {
-                              if (isChecked) {
-                                setQuizBatchIds(quizBatchIds.filter((id: string) => id !== String(b.id)));
-                              } else {
-                                setQuizBatchIds([...quizBatchIds, String(b.id)]);
-                              }
-                            }}
-                            className="rounded border-slate-350 dark:border-slate-700 text-[#4A1F4F] focus:ring-[#4A1F4F] w-4.5 h-4.5 cursor-pointer"
-                          />
-                          <span className="font-semibold text-slate-750 dark:text-slate-200">{b.batchName}</span>
-                        </label>
-                      );
-                    })
-                  )}
-                </div>
-                <p className="text-[10px] text-slate-400 dark:text-slate-500 italic leading-snug">
-                  Leave all batches unchecked to save as draft. Select at least one batch to publish the quiz.
-                </p>
-              </div>
-
-              {/* Score Summary Banner */}
-              <div className="md:col-span-2 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/85 flex flex-wrap gap-4 items-center justify-between text-xs select-none">
-                <div className="flex items-center gap-1.5">
-                  <span className="font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Questions:</span>
-                  <span className="font-black text-slate-850 dark:text-slate-100">{questionsList.length}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="font-bold text-slate-405 dark:text-slate-500 uppercase tracking-wider">Total Marks:</span>
-                  <span className="font-black text-[#2563EB]">{questionsList.reduce((sum, q) => sum + Number(q.marks || 0), 0)} pts</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="font-bold text-slate-405 dark:text-slate-500 uppercase tracking-wider">Passing Mark:</span>
-                  <span className="font-black text-emerald-600">
-                    {Math.round(questionsList.reduce((sum, q) => sum + Number(q.marks || 0), 0) * (passingPercentage / 100))} pts ({passingPercentage}%)
-                  </span>
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          {/* Segmented tabs */}
-          <div className="flex justify-center select-none">
-            <div className="flex gap-1 p-1 bg-slate-100 dark:bg-slate-800/60 rounded-full border border-slate-200/50 dark:border-slate-800/60 w-full">
-              <button
-                type="button"
-                onClick={() => setActiveCreatorTab('manual')}
-                className={`flex-1 py-2 px-4 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                  activeCreatorTab === 'manual'
-                    ? 'bg-[#4A1F4F] text-white shadow-sm'
-                    : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100'
-                }`}
-              >
-                <HelpCircle size={15} />
-                <span>Manual Question Builder</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveCreatorTab('import')}
-                className={`flex-1 py-2 px-4 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                  activeCreatorTab === 'import'
-                    ? 'bg-[#4A1F4F] text-white shadow-sm'
-                    : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100'
-                }`}
-              >
-                <FileSpreadsheet size={15} />
-                <span>Excel Bulk Upload</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Builder Panels */}
-          {activeCreatorTab === 'manual' ? (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between pb-2 border-b border-[var(--brand-border)]">
-                <div>
-                  <h3 className="text-sm font-bold text-[var(--text-primary)]">Question Builder</h3>
-                  <p className="text-[11px] text-[var(--text-secondary)]">Create and organize quiz questions below</p>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  icon={<Plus size={14} />}
-                  onClick={() => {
-                    setActiveBuilderQuestion({
-                      questionType: 'MCQ',
-                      questionText: '',
-                      optionA: '',
-                      optionB: '',
-                      optionC: '',
-                      optionD: '',
-                      correctAnswer: 'A',
-                      marks: 2,
-                      difficulty: 'Medium',
-                      explanation: '',
-                      negativeMarks: 0
-                    });
-                    setActiveBuilderIndex(null);
-                  }}
-                  className="cursor-pointer"
-                >
-                  Add Question
-                </Button>
-              </div>
-
-              {/* Questions list */}
-              {questionsList.length === 0 ? (
-                <div className="text-center py-12 border-2 border-dashed border-[var(--brand-border)] rounded-2xl bg-white dark:bg-slate-900/10">
-                  <HelpCircle className="mx-auto mb-2 text-[var(--text-secondary)] animate-bounce" size={24} />
-                  <p className="text-xs font-semibold text-[var(--text-primary)]">Workspace Empty</p>
-                  <p className="text-[11px] text-[var(--text-secondary)] mt-1">Start by adding a question manually or import from Excel.</p>
-                </div>
-              ) : (
+          <form className="grid grid-cols-1 lg:grid-cols-3 gap-6" onSubmit={(e) => e.preventDefault()}>
+            {/* Left Section */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Quiz Information Card */}
+              <Card className="rounded-[18px] shadow-sm bg-white dark:bg-slate-900 border border-[var(--brand-border)] p-6">
+                <h3 className="text-sm font-bold text-[var(--text-primary)] mb-5 pb-3 border-b border-[var(--brand-border)] flex items-center gap-2.5">
+                  <FileText size={18} className="text-[#6C1D5F] dark:text-purple-400" />
+                  Quiz Information
+                </h3>
                 <div className="space-y-4">
-                  {questionsList.map((q, idx) => {
-                    const errs = getQuestionErrors(q);
-                    const isInvalid = errs.length > 0;
-                    const isCurrentlyEditing = activeBuilderIndex === idx;
+                  <Input label="Quiz Title" placeholder="e.g. Midterm Physics Evaluation" required value={quizTitle} onChange={(e) => setQuizTitle(e.target.value)} />
+                  <Textarea label="Instructions" placeholder="Specific instructions for candidates..." rows={3} value={quizInstructions} onChange={(e) => setQuizInstructions(e.target.value)} />
+                  <Textarea label="Description" placeholder="Enter short quiz description..." rows={3} value={quizDescription} onChange={(e) => setQuizDescription(e.target.value)} />
+                </div>
+              </Card>
 
-                    return (
-                      <div
-                        key={idx}
-                        className={`p-5 rounded-2xl border shadow-sm transition-all ${
-                          isInvalid
-                            ? 'bg-rose-50/10 border-rose-200 dark:border-rose-900/30'
-                            : isCurrentlyEditing
-                            ? 'bg-[#4A1F4F05] border-[#4A1F4F]'
-                            : 'bg-white dark:bg-slate-800/10 border-[var(--brand-border)]'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1 space-y-3 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="w-5 h-5 rounded-md bg-slate-100 dark:bg-slate-800 text-[10px] font-bold flex items-center justify-center shrink-0">
-                                {idx + 1}
-                              </span>
-                              <h4 className="text-xs font-bold text-[var(--text-primary)] leading-relaxed">{q.questionText}</h4>
-                            </div>
+              {/* Segmented tabs */}
+              <div className="flex justify-center select-none">
+                <div className="flex gap-1 p-1 bg-slate-100 dark:bg-slate-800/60 rounded-full border border-slate-200/50 dark:border-slate-800/60 w-full">
+                  <button
+                    type="button"
+                    onClick={() => setActiveCreatorTab('manual')}
+                    className={`flex-1 py-2.5 px-4 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      activeCreatorTab === 'manual'
+                        ? 'bg-[#6C1D5F] text-white shadow-sm'
+                        : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100'
+                    }`}
+                  >
+                    <HelpCircle size={15} />
+                    <span>Manual Question Builder</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveCreatorTab('import')}
+                    className={`flex-1 py-2.5 px-4 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      activeCreatorTab === 'import'
+                        ? 'bg-[#6C1D5F] text-white shadow-sm'
+                        : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100'
+                    }`}
+                  >
+                    <FileSpreadsheet size={15} />
+                    <span>Excel Bulk Upload</span>
+                  </button>
+                </div>
+              </div>
 
-                            {/* MCQ/MSQ options display */}
-                            {(q.questionType === 'MCQ' || q.questionType === 'MSQ') && (
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pl-7">
-                                {['A', 'B', 'C', 'D'].map((optKey) => {
-                                  const val = q[`option${optKey}`];
-                                  const isCorrect = q.questionType === 'MSQ'
-                                    ? String(q.correctAnswer).split(',').map((p: string) => p.trim()).includes(optKey)
-                                    : q.correctAnswer === optKey;
-
-                                  return (
-                                    <p key={optKey} className={`text-[10px] px-2 py-1.5 rounded-lg border ${
-                                      isCorrect
-                                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-bold'
-                                        : 'border-[var(--brand-border)] text-[var(--text-secondary)]'
-                                    }`}>
-                                      <strong>{optKey}:</strong> {val || '—'}
-                                    </p>
-                                  );
-                                })}
-                              </div>
-                            )}
-
-                            {/* True/False Options display */}
-                            {q.questionType === 'TRUE_FALSE' && (
-                              <div className="flex gap-4 pl-7">
-                                {['A', 'B'].map((optKey) => {
-                                  const val = optKey === 'A' ? (q.optionA || 'True') : (q.optionB || 'False');
-                                  const isCorrect = String(q.correctAnswer).trim().toUpperCase() === optKey || String(q.correctAnswer).trim().toUpperCase() === val.toUpperCase();
-                                  return (
-                                    <p key={optKey} className={`text-[10px] px-2 py-1.5 rounded-lg border ${
-                                      isCorrect
-                                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-bold'
-                                        : 'border-[var(--brand-border)] text-[var(--text-secondary)]'
-                                    }`}>
-                                      <strong>{optKey === 'A' ? 'True' : 'False'}:</strong> {val}
-                                    </p>
-                                  );
-                                })}
-                              </div>
-                            )}
-
-                            {/* Short answer text */}
-                            {q.questionType === 'SHORT_ANSWER' && (
-                              <p className="text-[10px] text-[var(--text-secondary)] mt-1 pl-7">
-                                Correct text match: <span className="font-bold text-emerald-600 dark:text-emerald-400">{q.correctAnswer}</span>
-                              </p>
-                            )}
-
-                            {/* Question Validation Error display */}
-                            {isInvalid && (
-                              <div className="pl-7">
-                                <div className="mt-2.5 flex items-start gap-1.5 text-[10px] text-red-505 font-semibold bg-[#F5EAF8]0/5 p-2.5 rounded-lg border border-red-200 dark:border-red-900/20">
-                                  <AlertTriangle size={13} className="shrink-0 mt-0.5" />
-                                  <div className="space-y-0.5">
-                                    {errs.map((e, idxE) => <p key={idxE}>• {e}</p>)}
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Question meta chips */}
-                            <div className="flex gap-3 pl-7 text-[9px] uppercase font-bold text-[var(--text-secondary)] tracking-wider items-center">
-                              <span>{q.marks} Marks</span>
-                              <span>•</span>
-                              <span className={
-                                q.difficulty === 'Easy' ? 'text-emerald-600' :
-                                q.difficulty === 'Hard' ? 'text-red-500' : 'text-amber-500'
-                              }>{q.difficulty}</span>
-                              <span>•</span>
-                              <span>{q.questionType}</span>
-                              {q.explanation && (
-                                <>
-                                  <span>•</span>
-                                  <span className="lowercase font-normal italic text-slate-400">has explanation</span>
-                                </>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Action controls */}
-                          <div className="flex flex-col items-end gap-2 shrink-0">
-                            <div className="flex gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setActiveBuilderQuestion({ ...q });
-                                  setActiveBuilderIndex(idx);
-                                }}
-                                className="p-1.5 rounded bg-slate-50 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-500/10 cursor-pointer"
-                                title="Edit Question"
-                              >
-                                <Edit size={13} />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => duplicateQuestion(idx)}
-                                className="p-1.5 rounded bg-slate-50 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-500/10 cursor-pointer"
-                                title="Duplicate Question"
-                              >
-                                <Copy size={13} />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => deleteQuestion(idx)}
-                                className="p-1.5 rounded bg-slate-50 dark:bg-slate-800 hover:bg-rose-50 cursor-pointer text-red-500"
-                                title="Delete"
-                              >
-                                <Trash2 size={13} />
-                              </button>
-                            </div>
-                            <div className="flex gap-1">
-                              <button
-                                type="button"
-                                disabled={idx === 0}
-                                onClick={() => moveQuestion(idx, 'up')}
-                                className="p-1 rounded border border-[var(--brand-border)] disabled:opacity-30 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-                              >
-                                <ArrowUp size={11} />
-                              </button>
-                              <button
-                                type="button"
-                                disabled={idx === questionsList.length - 1}
-                                onClick={() => moveQuestion(idx, 'down')}
-                                className="p-1 rounded border border-[var(--brand-border)] disabled:opacity-30 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-                              >
-                                <ArrowDown size={11} />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  <div className="flex justify-center pt-2">
+              {/* Builder Panels */}
+              {activeCreatorTab === 'manual' ? (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between pb-2 border-b border-[var(--brand-border)]">
+                    <div>
+                      <h3 className="text-sm font-bold text-[var(--text-primary)]">Question Builder</h3>
+                      <p className="text-[11px] text-[var(--text-secondary)]">Create and organize quiz questions below</p>
+                    </div>
                     <Button
                       type="button"
                       variant="outline"
@@ -1189,110 +896,333 @@ export const TeacherQuizzes: React.FC = () => {
                         });
                         setActiveBuilderIndex(null);
                       }}
-                      className="rounded-full px-6 font-bold border-dashed cursor-pointer"
+                      className="cursor-pointer"
                     >
                       Add Question
                     </Button>
                   </div>
+
+                  {/* Questions list */}
+                  {questionsList.length === 0 ? (
+                    <div className="text-center py-12 border-2 border-dashed border-[var(--brand-border)] rounded-2xl bg-white dark:bg-slate-900/10">
+                      <HelpCircle className="mx-auto mb-2 text-[var(--text-secondary)] animate-bounce" size={24} />
+                      <p className="text-xs font-semibold text-[var(--text-primary)]">Workspace Empty</p>
+                      <p className="text-[11px] text-[var(--text-secondary)] mt-1">Start by adding a question manually or import from Excel.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {questionsList.map((q, idx) => {
+                        const errs = getQuestionErrors(q);
+                        const isInvalid = errs.length > 0;
+                        const isCurrentlyEditing = activeBuilderIndex === idx;
+
+                        return (
+                          <div
+                            key={idx}
+                            className={`p-5 rounded-2xl border shadow-sm transition-all ${
+                              isInvalid
+                                ? 'bg-rose-50/10 border-rose-200 dark:border-rose-900/30'
+                                : isCurrentlyEditing
+                                ? 'bg-[#6C1D5F05] border-[#6C1D5F]'
+                                : 'bg-white dark:bg-slate-800/10 border-[var(--brand-border)]'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1 space-y-3 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="w-5 h-5 rounded-md bg-slate-100 dark:bg-slate-800 text-[10px] font-bold flex items-center justify-center shrink-0">
+                                    {idx + 1}
+                                  </span>
+                                  <h4 className="text-xs font-bold text-[var(--text-primary)] leading-relaxed">{q.questionText}</h4>
+                                </div>
+
+                                {/* MCQ/MSQ options display */}
+                                {(q.questionType === 'MCQ' || q.questionType === 'MSQ') && (
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pl-7">
+                                    {['A', 'B', 'C', 'D'].map((optKey) => {
+                                      const val = q[`option${optKey}`];
+                                      const isCorrect = q.questionType === 'MSQ'
+                                        ? String(q.correctAnswer).split(',').map((p: string) => p.trim()).includes(optKey)
+                                        : q.correctAnswer === optKey;
+
+                                      return (
+                                        <p key={optKey} className={`text-[10px] px-2 py-1.5 rounded-lg border ${
+                                          isCorrect
+                                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-bold'
+                                            : 'border-[var(--brand-border)] text-[var(--text-secondary)]'
+                                        }`}>
+                                          <span className="font-bold mr-1">{optKey}:</span> {val}
+                                        </p>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+
+                                {q.questionType === 'TRUE_FALSE' && (
+                                  <div className="grid grid-cols-2 gap-2 pl-7">
+                                    {['A', 'B'].map((optKey) => {
+                                      const isCorrect = q.correctAnswer === optKey;
+                                      const label = optKey === 'A' ? 'True' : 'False';
+                                      return (
+                                        <p key={optKey} className={`text-[10px] px-2 py-1.5 rounded-lg border ${
+                                          isCorrect
+                                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-bold'
+                                            : 'border-[var(--brand-border)] text-[var(--text-secondary)]'
+                                        }`}>
+                                          <span className="font-bold mr-1">{label}</span>
+                                        </p>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+
+                                <div className="flex flex-wrap items-center gap-2 text-[10px] text-[var(--text-secondary)] pl-7">
+                                  <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 font-medium">Type: {q.questionType}</span>
+                                  <span className="px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-[#2563EB] font-medium">Marks: {q.marks}</span>
+                                  {q.negativeMarks > 0 && <span className="px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-900/30 text-rose-600 font-medium">Neg: -{q.negativeMarks}</span>}
+                                  <span className="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-600 font-medium">Diff: {q.difficulty}</span>
+                                </div>
+                              </div>
+
+                              <div className="flex gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActiveBuilderQuestion({ ...q });
+                                    setActiveBuilderIndex(idx);
+                                  }}
+                                  className="p-1.5 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer"
+                                >
+                                  <Edit size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const updated = questionsList.filter((_, i) => i !== idx);
+                                    setQuestionsList(updated);
+                                    toast.success('Question deleted.');
+                                  }}
+                                  className="p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-lg cursor-pointer"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* Excel upload template panel */
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between pb-2 border-b border-[var(--brand-border)]">
+                    <div>
+                      <h3 className="text-sm font-bold text-[var(--text-primary)]">Excel Import</h3>
+                      <p className="text-[11px] text-[var(--text-secondary)]">Import questions in bulk via template sheet</p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      icon={<Download size={13} />}
+                      onClick={downloadExcelTemplate}
+                    >
+                      Download Template
+                    </Button>
+                  </div>
+
+                  <div
+                    className={`drop-zone p-8 text-center border-dashed border-2 rounded-2xl cursor-pointer ${
+                      isExcelDragging ? 'bg-[#6C1D5F]/5 border-[#6C1D5F]' : 'border-[var(--brand-border)] hover:border-slate-400'
+                    } ${isExcelUploading ? 'opacity-50 pointer-events-none' : ''}`}
+                    onDragOver={(e) => { if (!isExcelUploading) { e.preventDefault(); setIsExcelDragging(true); } }}
+                    onDragLeave={() => setIsExcelDragging(false)}
+                    onDrop={onExcelDrop}
+                    onClick={() => { if (!isExcelUploading) excelRef.current?.click(); }}
+                  >
+                    <Upload size={28} className="mx-auto mb-2 text-[#6C1D5F] dark:text-purple-405" />
+                    <p className="text-xs font-semibold text-[var(--text-primary)]">{isExcelUploading ? 'Uploading & Parsing...' : 'Drag & Drop Excel Spreadsheet here'}</p>
+                    <p className="text-[10px] text-[var(--text-secondary)] mt-1">or click to browse local files (.xlsx, .xls) · Max 10MB</p>
+                    <input
+                      ref={excelRef}
+                      type="file"
+                      className="hidden"
+                      accept=".xlsx,.xls"
+                      onChange={(e) => { if (e.target.files?.[0]) handleExcelFile(e.target.files[0]); }}
+                      disabled={isExcelUploading}
+                    />
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/10 text-[10px] text-[var(--text-secondary)] space-y-1.5 leading-normal">
+                    <p className="font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                      <AlertTriangle size={12} /> Excel Structure Specifications
+                    </p>
+                    <p>1. Row 1: Headers (Question, Option A, Option B, Option C, Option D, Correct Answer, Marks, Difficulty).</p>
+                    <p>2. Correct Answer values: A, B, C, or D.</p>
+                    <p>3. Blank Option C/D columns resolve to a True/False statement.</p>
+                  </div>
+
+                  {/* Imported preview list */}
+                  {questionsList.length > 0 && (
+                    <div className="space-y-3">
+                      <h4 className="text-xs font-bold text-[var(--text-primary)] border-b border-[var(--brand-border)] pb-2 mt-4">
+                        Imported Questions Preview ({questionsList.length})
+                      </h4>
+                      <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                        {questionsList.map((q, idx) => (
+                          <div key={idx} className="p-3 bg-white dark:bg-slate-800 border border-[var(--brand-border)] rounded-xl flex items-start gap-2.5 shadow-sm text-xs">
+                            <span className="w-5 h-5 rounded bg-slate-100 dark:bg-slate-700 text-[10px] font-bold flex items-center justify-center shrink-0">
+                              {idx + 1}
+                            </span>
+                            <div>
+                              <p className="font-bold text-[var(--text-primary)]">{q.questionText}</p>
+                              <p className="text-[10px] text-[var(--text-secondary)] mt-1">
+                                Type: {q.questionType} • Marks: {q.marks} • Answer: <span className="text-emerald-600 font-bold">{q.correctAnswer}</span>
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          ) : (
-            /* Excel upload template panel */
-            <div className="space-y-4">
-              <div className="flex items-center justify-between pb-2 border-b border-[var(--brand-border)]">
-                <div>
-                  <h3 className="text-sm font-bold text-[var(--text-primary)]">Excel Import</h3>
-                  <p className="text-[11px] text-[var(--text-secondary)]">Import questions in bulk via template sheet</p>
+
+            {/* Right Section */}
+            <div className="space-y-6">
+              {/* Quiz Settings Card */}
+              <Card className="rounded-[18px] shadow-sm bg-white dark:bg-slate-900 border border-[var(--brand-border)] p-6">
+                <h3 className="text-sm font-bold text-[var(--text-primary)] mb-4 pb-3 border-b border-[var(--brand-border)] flex items-center gap-2.5">
+                  <Settings size={18} className="text-[#6C1D5F] dark:text-purple-400" />
+                  Quiz Settings
+                </h3>
+                <div className="space-y-4">
+                  <Select
+                    label="Subject"
+                    value={quizSubject}
+                    onChange={(e) => setQuizSubject(e.target.value)}
+                    options={SUBJECTS.filter(s => s !== 'All').map(s => ({ value: s, label: s }))}
+                  />
+                  <Input label="Topic / Category" placeholder="e.g. Gravitation" value={quizTopic} onChange={(e) => setQuizTopic(e.target.value)} />
+                  <Input label="Due Date" type="date" min={todayDate} required value={quizDueDate} onChange={(e) => setQuizDueDate(e.target.value)} />
+                  <Input label="Time Limit (Mins)" type="number" min={5} value={String(quizTimeLimit)} onChange={(e) => setQuizTimeLimit(Number(e.target.value))} />
+                  <Input label="Attempts Allowed" type="number" min={1} value={String(quizAttempts)} onChange={(e) => setQuizAttempts(Number(e.target.value))} />
+                  <Select
+                    label="Difficulty Level"
+                    value={quizDifficulty}
+                    onChange={(e) => setQuizDifficulty(e.target.value as any)}
+                    options={[
+                      { value: 'Easy', label: 'Easy' },
+                      { value: 'Medium', label: 'Medium' },
+                      { value: 'Hard', label: 'Hard' }
+                    ]}
+                  />
                 </div>
+              </Card>
+
+              {/* Certificate & Eligibility Card */}
+              <Card className="rounded-[18px] shadow-sm bg-white dark:bg-slate-900 border border-[var(--brand-border)] p-6">
+                <h3 className="text-sm font-bold text-[var(--text-primary)] mb-4 pb-3 border-b border-[var(--brand-border)] flex items-center gap-2.5">
+                  <Award size={18} className="text-[#6C1D5F] dark:text-purple-400" />
+                  Eligibility & Score
+                </h3>
+                <div className="space-y-4">
+                  <Input label="Passing Marks (%)" type="number" min={10} max={100} value={String(passingPercentage)} onChange={(e) => setPassingPercentage(Number(e.target.value))} />
+                  <div>
+                    <Input label="Certificate Eligibility Marks (%)" type="number" min={10} max={100} value={String(quizCertEligibilityMarks)} onChange={(e) => setQuizCertEligibilityMarks(Number(e.target.value))} />
+                    <p className="text-[10px] text-[var(--text-secondary)] mt-2 leading-relaxed">
+                      Students must achieve at least these marks to become eligible for course certificate generation.
+                    </p>
+                  </div>
+
+                  {/* Score Summary Banner */}
+                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/85 space-y-2.5 text-xs select-none">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Questions:</span>
+                      <span className="font-black text-slate-850 dark:text-slate-100">{questionsList.length}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-slate-405 dark:text-slate-500 uppercase tracking-wider">Total Marks:</span>
+                      <span className="font-black text-[#2563EB]">{questionsList.reduce((sum, q) => sum + Number(q.marks || 0), 0)} pts</span>
+                    </div>
+                    <div className="flex items-center justify-between border-t border-[var(--brand-border)] pt-2 mt-1">
+                      <span className="font-semibold text-slate-405 dark:text-slate-500 uppercase tracking-wider">Passing Mark:</span>
+                      <span className="font-black text-emerald-600">
+                        {Math.round(questionsList.reduce((sum, q) => sum + Number(q.marks || 0), 0) * (passingPercentage / 100))} pts ({passingPercentage}%)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Target Batches Card */}
+              <Card className="rounded-[18px] shadow-sm bg-white dark:bg-slate-900 border border-[var(--brand-border)] p-6">
+                <h3 className="text-sm font-bold text-[var(--text-primary)] mb-4 pb-3 border-b border-[var(--brand-border)] flex items-center gap-2.5">
+                  <Users size={18} className="text-[#6C1D5F] dark:text-purple-400" />
+                  Target Batches
+                </h3>
+                <div className="space-y-2">
+                  <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto border border-slate-100 dark:border-slate-800/80 p-3 rounded-xl bg-slate-50/50 dark:bg-slate-800/20 shadow-inner">
+                    {batches.length === 0 ? (
+                      <p className="text-xs text-[var(--text-secondary)] italic col-span-full">No batches available.</p>
+                    ) : (
+                      batches.map((b) => {
+                        const isChecked = quizBatchIds.includes(String(b.id));
+                        return (
+                          <label key={b.id} className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-100/50 dark:hover:bg-slate-800/50 cursor-pointer text-xs text-[var(--text-primary)] transition-all select-none">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                if (isChecked) {
+                                  setQuizBatchIds(quizBatchIds.filter((id: string) => id !== String(b.id)));
+                                } else {
+                                  setQuizBatchIds([...quizBatchIds, String(b.id)]);
+                                }
+                              }}
+                              className="rounded border-slate-350 dark:border-slate-700 text-[#6C1D5F] focus:ring-[#6C1D5F] w-4.5 h-4.5 cursor-pointer"
+                            />
+                            <span className="font-semibold text-slate-750 dark:text-slate-200">{b.batchName}</span>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 italic leading-snug">
+                    Leave all batches unchecked to save as draft. Select at least one batch to publish the quiz.
+                  </p>
+                </div>
+              </Card>
+            </div>
+
+            {/* Sticky Bottom Action Bar */}
+            <div className="fixed bottom-0 left-0 right-0 lg:pl-64 bg-white dark:bg-[#1E293B]/95 border-t border-[var(--brand-border)] py-4 px-6 md:px-8 shadow-[0_-4px_12px_rgba(0,0,0,0.05)] z-40 flex items-center justify-between backdrop-blur-sm select-none">
+              <Button variant="ghost" onClick={handleCloseCreateModal} disabled={submittingQuiz}>Cancel</Button>
+              <div className="flex gap-3">
                 <Button
                   type="button"
                   variant="outline"
-                  size="sm"
-                  icon={<Download size={13} />}
-                  onClick={downloadExcelTemplate}
+                  size="lg"
+                  disabled={hasAnyValidationErrors() || submittingQuiz}
+                  onClick={() => onSubmitQuiz('draft')}
                 >
-                  Download Template
+                  Save Draft
+                </Button>
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="lg"
+                  disabled={questionsList.length === 0 || hasAnyValidationErrors() || submittingQuiz}
+                  onClick={() => onSubmitQuiz('published')}
+                >
+                  {submittingQuiz ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Publish Quiz')}
                 </Button>
               </div>
-
-              <div
-                className={`drop-zone p-8 text-center border-dashed border-2 rounded-2xl cursor-pointer ${
-                  isExcelDragging ? 'bg-[#4A1F4F]/5 border-[#4A1F4F]' : 'border-[var(--brand-border)] hover:border-slate-400'
-                } ${isExcelUploading ? 'opacity-50 pointer-events-none' : ''}`}
-                onDragOver={(e) => { if (!isExcelUploading) { e.preventDefault(); setIsExcelDragging(true); } }}
-                onDragLeave={() => setIsExcelDragging(false)}
-                onDrop={onExcelDrop}
-                onClick={() => { if (!isExcelUploading) excelRef.current?.click(); }}
-              >
-                <Upload size={28} className="mx-auto mb-2 text-[#4A1F4F] dark:text-purple-405" />
-                <p className="text-xs font-semibold text-[var(--text-primary)]">{isExcelUploading ? 'Uploading & Parsing...' : 'Drag & Drop Excel Spreadsheet here'}</p>
-                <p className="text-[10px] text-[var(--text-secondary)] mt-1">or click to browse local files (.xlsx, .xls) · Max 10MB</p>
-                <input
-                  ref={excelRef}
-                  type="file"
-                  className="hidden"
-                  accept=".xlsx,.xls"
-                  onChange={(e) => { if (e.target.files?.[0]) handleExcelFile(e.target.files[0]); }}
-                  disabled={isExcelUploading}
-                />
-              </div>
-
-              <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/10 text-[10px] text-[var(--text-secondary)] space-y-1.5 leading-normal">
-                <p className="font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                  <AlertTriangle size={12} /> Excel Structure Specifications
-                </p>
-                <p>1. Row 1: Headers (Question, Option A, Option B, Option C, Option D, Correct Answer, Marks, Difficulty).</p>
-                <p>2. Correct Answer values: A, B, C, or D.</p>
-                <p>3. Blank Option C/D columns resolve to a True/False statement.</p>
-              </div>
-
-              {/* Imported preview list */}
-              {questionsList.length > 0 && (
-                <div className="space-y-3">
-                  <h4 className="text-xs font-bold text-[var(--text-primary)] border-b border-[var(--brand-border)] pb-2 mt-4">
-                    Imported Questions Preview ({questionsList.length})
-                  </h4>
-                  <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                    {questionsList.map((q, idx) => (
-                      <div key={idx} className="p-3 bg-white dark:bg-slate-800 border border-[var(--brand-border)] rounded-xl flex items-start gap-2.5 shadow-sm text-xs">
-                        <span className="w-5 h-5 rounded bg-slate-100 dark:bg-slate-700 text-[10px] font-bold flex items-center justify-center shrink-0">
-                          {idx + 1}
-                        </span>
-                        <div>
-                          <p className="font-bold text-[var(--text-primary)]">{q.questionText}</p>
-                          <p className="text-[10px] text-[var(--text-secondary)] mt-1">
-                            Type: {q.questionType} • Marks: {q.marks} • Answer: <span className="text-emerald-600 font-bold">{q.correctAnswer}</span>
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
-          )}
-
-          {/* Action buttons */}
-          <div className="flex items-center justify-between border-t border-[var(--brand-border)] pt-4 mt-6">
-            <Button variant="ghost" onClick={handleCloseCreateModal} disabled={submittingQuiz}>Cancel</Button>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                disabled={hasAnyValidationErrors() || submittingQuiz}
-                onClick={() => onSubmitQuiz('draft')}
-              >
-                Save Draft
-              </Button>
-              <Button
-                variant="primary"
-                disabled={questionsList.length === 0 || hasAnyValidationErrors() || submittingQuiz}
-                onClick={() => onSubmitQuiz('published')}
-              >
-                {submittingQuiz ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Publish Quiz')}
-              </Button>
-            </div>
-          </div>
+          </form>
         </div>
       </Layout>
     );
@@ -1512,7 +1442,7 @@ export const TeacherQuizzes: React.FC = () => {
                         setSelectedBatchIds([...selectedBatchIds, String(b.id)]);
                       }
                     }}
-                    className="rounded border-[var(--brand-border)] text-[#4A1F4F] focus:ring-[#4A1F4F]"
+                    className="rounded border-[var(--brand-border)] text-[#6C1D5F] focus:ring-[#6C1D5F]"
                   />
                   <span>{b.batchName}</span>
                 </label>

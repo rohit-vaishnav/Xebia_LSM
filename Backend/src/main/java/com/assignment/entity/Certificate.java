@@ -23,6 +23,10 @@ public class Certificate {
     private Student student;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "course_id")
+    private com.assignment.entity.learning.CourseEntity course;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assignment_id")
     private Assignment assignment;
 

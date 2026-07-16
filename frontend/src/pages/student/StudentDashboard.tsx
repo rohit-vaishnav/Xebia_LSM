@@ -5,6 +5,7 @@ import { StatCard, Card } from '../../components/ui/Card';
 import { StatCardSkeleton } from '../../components/shared/LoadingSkeleton';
 import { studentService } from '../../services/student.service';
 import { useAuth } from '../../contexts/AuthContext';
+import { useCatalog } from '../../hooks-lms/useCatalog';
 import type { StudentDashboardStats, Assignment } from '../../types';
 import { Badge } from '../../components/ui/Badge';
 import { useNavigate } from 'react-router-dom';
@@ -12,6 +13,7 @@ import { getDueDateCountdown, getDueDateColor } from '../../utils/helpers';
 
 export const StudentDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const { courses } = useCatalog();
   const [stats, setStats] = useState<StudentDashboardStats | null>(null);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -121,11 +123,11 @@ export const StudentDashboard: React.FC = () => {
   }, []);
 
   const cards = stats ? [
-    { title: 'Total Assignments', value: stats.totalAssignments, icon: <BookOpen size={20} />, color: 'purple' as const },
+    { title: 'Total Courses', value: courses?.length || 0, icon: <BookOpen size={20} />, color: 'purple' as const },
+    { title: 'Enrolled Courses', value: courses?.length || 0, icon: <CheckCircle size={20} />, color: 'blue' as const },
     { title: 'Pending Tasks', value: stats.pendingAssignments, icon: <Clock size={20} />, color: 'amber' as const },
-    { title: 'Submitted', value: stats.submittedAssignments, icon: <CheckCircle size={20} />, color: 'blue' as const },
-    { title: 'Reviewed', value: stats.reviewedAssignments, icon: <Star size={20} />, color: 'teal' as const },
     { title: 'Average Grade', value: `${stats.averageGrade}%`, icon: <Award size={20} />, color: 'green' as const },
+    { title: 'Study Streak', value: `${loginStreak} Days`, icon: <Flame size={20} />, color: 'teal' as const },
   ] : [];
 
   const getStatusLabelAndColor = (status: string) => {

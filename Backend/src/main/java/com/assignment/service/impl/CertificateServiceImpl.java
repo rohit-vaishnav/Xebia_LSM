@@ -16,7 +16,8 @@ import com.assignment.repository.CertificateRepository;
 import com.assignment.repository.StudentRepository;
 import com.assignment.repository.SubmissionRepository;
 import com.assignment.service.CertificateService;
-import lombok.RequiredArgsConstructor;
+import com.assignment.entity.learning.CourseEntity;
+import com.assignment.repository.CourseRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,7 +28,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 public class CertificateServiceImpl implements CertificateService {
 
     private final CertificateRepository certificateRepository;
@@ -35,6 +35,22 @@ public class CertificateServiceImpl implements CertificateService {
     private final StudentRepository studentRepository;
     private final CertificateMapper certificateMapper;
     private final AssignmentRepository assignmentRepository;
+    private final CourseRepository courseRepository;
+
+    public CertificateServiceImpl(
+            CertificateRepository certificateRepository,
+            SubmissionRepository submissionRepository,
+            StudentRepository studentRepository,
+            CertificateMapper certificateMapper,
+            AssignmentRepository assignmentRepository,
+            CourseRepository courseRepository) {
+        this.certificateRepository = certificateRepository;
+        this.submissionRepository = submissionRepository;
+        this.studentRepository = studentRepository;
+        this.certificateMapper = certificateMapper;
+        this.assignmentRepository = assignmentRepository;
+        this.courseRepository = courseRepository;
+    }
 
     @Override
     @Transactional
@@ -294,5 +310,235 @@ public class CertificateServiceImpl implements CertificateService {
     @Transactional
     public byte[] downloadCertificateByUuid(String idOrUuid, String studentEmail) {
         throw new BadRequestException("PDF generation has been migrated to the client side. Please download from the frontend certificate preview.");
+    }
+
+    private List<Assignment> getCourseAssignments(CourseEntity course) {
+        List<Long> assignmentIds = new java.util.ArrayList<>();
+        if (course.getModules() != null) {
+            for (com.assignment.entity.learning.ModuleEntity module : course.getModules()) {
+                if (module.getSubmodules() != null) {
+                    for (com.assignment.entity.learning.SubmoduleEntity submodule : module.getSubmodules()) {
+                        if (submodule.getContents() != null) {
+                            for (com.assignment.entity.learning.ContentEntity content : submodule.getContents()) {
+                                if (content.getAssignmentId() != null) {
+                                    assignmentIds.add(content.getAssignmentId());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (assignmentIds.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+        return assignmentRepository.findAllById(assignmentIds);
+    }
+
+    private void validateCourseCertificateEligibility(Student student, CourseEntity course, List<Assignment> assignments) {
+        if (!Boolean.TRUE.equals(course.getEnableCertificate())) {
+            throw new BadRequestException("Certificates are not enabled for this course.");
+        }
+
+        int totalTasks = assignments.size();
+        int completedTasks = 0;
+        double quizScoreSum = 0.0;
+        int quizCount = 0;
+        boolean finalPassed = true;
+        boolean allAssignmentsCompleted = true;
+
+        // Find final assessment (highest marks task)
+        Assignment finalAssessment = null;
+        for (Assignment a : assignments) {
+            if (finalAssessment == null || a.getTotalMarks() > finalAssessment.getTotalMarks()) {
+                finalAssessment = a;
+            }
+        }
+
+        for (Assignment a : assignments) {
+            Optional<Submission> subOpt = submissionRepository.findByAssignmentIdAndStudentId(a.getId(), student.getId());
+            boolean isCompleted = subOpt.isPresent() && (subOpt.get().getStatus() == SubmissionStatus.SUBMITTED || subOpt.get().getStatus() == SubmissionStatus.REVIEWED);
+            if (isCompleted) {
+                completedTasks++;
+                Submission sub = subOpt.get();
+                Double marks = sub.getMarks() != null ? sub.getMarks() : a.getTotalMarks();
+                if (a.getAssignmentType() == com.assignment.enums.AssignmentType.QUIZ) {
+                    quizScoreSum += (marks / a.getTotalMarks()) * 100.0;
+                    quizCount++;
+                }
+                if (a.equals(finalAssessment)) {
+                    Double passing = a.getPassingMarks() != null ? a.getPassingMarks() : a.getTotalMarks() * 0.4;
+                    if (marks < passing) {
+                        finalPassed = false;
+                    }
+                }
+            } else {
+                if (a.getAssignmentType() != com.assignment.enums.AssignmentType.QUIZ) {
+                    allAssignmentsCompleted = false;
+                }
+                if (a.equals(finalAssessment)) {
+                    finalPassed = false;
+                }
+            }
+        }
+
+        double completionPct = totalTasks > 0 ? ((double) completedTasks / totalTasks) * 100.0 : 100.0;
+        double avgQuizScore = quizCount > 0 ? (quizScoreSum / quizCount) : 100.0;
+
+        // 1. Course completion check
+        Integer reqCompletion = course.getMinCourseCompletion() != null ? course.getMinCourseCompletion() : 100;
+        if (completionPct < reqCompletion) {
+            throw new BadRequestException(String.format("Course Completion requirement not met: required %d%%, actual %.1f%%", reqCompletion, completionPct));
+        }
+
+        // 2. Quiz score check
+        if (course.getMinQuizScore() != null && quizCount > 0) {
+            if (avgQuizScore < course.getMinQuizScore()) {
+                throw new BadRequestException(String.format("Average Quiz Score requirement not met: required %.1f%%, actual %.1f%%", course.getMinQuizScore(), avgQuizScore));
+            }
+        }
+
+        // 3. Assignment requirement check
+        if ("Required".equalsIgnoreCase(course.getAssignmentRequirement())) {
+            if (!allAssignmentsCompleted) {
+                throw new BadRequestException("All required assignments must be submitted.");
+            }
+        }
+
+        // 4. Final Assessment check
+        if (Boolean.TRUE.equals(course.getFinalAssessmentRequirement()) && finalAssessment != null) {
+            if (!finalPassed) {
+                throw new BadRequestException("Final Assessment must be passed.");
+            }
+        }
+    }
+
+    @Override
+    @Transactional
+    public CertificateResponse claimCourseCertificate(Long courseId, String studentEmail) {
+        Student student = studentRepository.findByEmail(studentEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Student profile not found"));
+        CourseEntity course = courseRepository.findByIdWithModules(courseId)
+                .orElseThrow(() -> new ResourceNotFoundException("Course not found"));
+
+        Optional<Certificate> existingCert = certificateRepository.findByStudentIdAndCourseId(student.getId(), courseId);
+        if (existingCert.isPresent()) {
+            return certificateMapper.toResponse(existingCert.get());
+        }
+
+        List<Assignment> assignments = getCourseAssignments(course);
+        validateCourseCertificateEligibility(student, course, assignments);
+
+        String studentName = student.getFullName();
+        String title = course.getTitle();
+        String teacherName = "Course Instructor";
+        if (course.getAuthor() != null && !course.getAuthor().isBlank()) {
+            teacherName = course.getAuthor();
+        }
+
+        double finalScore = 100.0;
+        double earnedSum = 0.0;
+        double maxSum = 0.0;
+        for (Assignment a : assignments) {
+            Optional<Submission> subOpt = submissionRepository.findByAssignmentIdAndStudentId(a.getId(), student.getId());
+            if (subOpt.isPresent()) {
+                earnedSum += subOpt.get().getMarks() != null ? subOpt.get().getMarks() : a.getTotalMarks();
+                maxSum += a.getTotalMarks();
+            }
+        }
+        if (maxSum > 0) {
+            finalScore = (earnedSum / maxSum) * 100.0;
+        }
+
+        String certId = "CERT-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        String verificationToken = UUID.randomUUID().toString();
+
+        Certificate certificate = Certificate.builder()
+                .student(student)
+                .course(course)
+                .certificateUrl("") // satisfy database not-null constraint
+                .cloudinaryPublicId(certId)
+                .marks(finalScore)
+                .generatedAt(LocalDateTime.now())
+                .certificateType("COURSE")
+                .certificateId(certId)
+                .studentName(studentName)
+                .assignmentName(title)
+                .teacherName(teacherName)
+                .completionDate(LocalDateTime.now())
+                .generatedDate(LocalDateTime.now())
+                .verificationToken(verificationToken)
+                .build();
+
+        Certificate saved = certificateRepository.save(certificate);
+        return certificateMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public CertificateResponse getCourseCertificate(Long courseId, String studentEmail) {
+        Student student = studentRepository.findByEmail(studentEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Student profile not found"));
+        
+        Optional<Certificate> certOpt = certificateRepository.findByStudentIdAndCourseId(student.getId(), courseId);
+        if (certOpt.isPresent()) {
+            return certificateMapper.toResponse(certOpt.get());
+        }
+
+        // Try to claim if eligible
+        try {
+            return claimCourseCertificate(courseId, studentEmail);
+        } catch (Exception e) {
+            return null; // Not eligible yet
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CertificateResponse getCourseCertificatePreview(Long courseId, String studentEmail) {
+        Student student = studentRepository.findByEmail(studentEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Student profile not found"));
+        CourseEntity course = courseRepository.findByIdWithModules(courseId)
+                .orElseThrow(() -> new ResourceNotFoundException("Course not found"));
+
+        Optional<Certificate> existingCert = certificateRepository.findByStudentIdAndCourseId(student.getId(), courseId);
+        if (existingCert.isPresent()) {
+            return certificateMapper.toResponse(existingCert.get());
+        }
+
+        List<Assignment> assignments = getCourseAssignments(course);
+        double finalScore = 100.0;
+        double earnedSum = 0.0;
+        double maxSum = 0.0;
+        for (Assignment a : assignments) {
+            Optional<Submission> subOpt = submissionRepository.findByAssignmentIdAndStudentId(a.getId(), student.getId());
+            if (subOpt.isPresent()) {
+                earnedSum += subOpt.get().getMarks() != null ? subOpt.get().getMarks() : a.getTotalMarks();
+                maxSum += a.getTotalMarks();
+            }
+        }
+        if (maxSum > 0) {
+            finalScore = (earnedSum / maxSum) * 100.0;
+        }
+
+        String teacherName = "Course Instructor";
+        if (course.getAuthor() != null && !course.getAuthor().isBlank()) {
+            teacherName = course.getAuthor();
+        }
+
+        return CertificateResponse.builder()
+                .studentId(student.getId())
+                .studentName(student.getFullName())
+                .courseId(course.getId())
+                .courseTitle(course.getTitle())
+                .marks(finalScore)
+                .maxMarks(100.0)
+                .certificateType("COURSE")
+                .teacherName(teacherName)
+                .completionDate(LocalDateTime.now())
+                .generatedAt(LocalDateTime.now())
+                .generatedDate(LocalDateTime.now())
+                .certificateId("PREVIEW-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
+                .build();
     }
 }
