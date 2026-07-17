@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Plus, Edit, Trash2, Users, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Layout } from '../../components/layout/Layout';
@@ -10,10 +10,11 @@ import { getAllBatches, createBatch, updateBatch, deleteBatch } from '../../stor
 import type { Batch } from '../../services/batch.service';
 import { TableRowSkeleton } from '../../components/shared/LoadingSkeleton';
 import { EmptyState } from '../../components/shared/EmptyState';
+import { Pagination } from '../../components/shared/Pagination';
 
 export const BatchManagement: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { batches, loading } = useAppSelector((state) => state.batch);
+  const { batches, loading, totalPages, totalElements } = useAppSelector((state) => state.batch);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -24,9 +25,17 @@ export const BatchManagement: React.FC = () => {
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Pagination states
+  const [page, setPage] = useState(0);
+  const [limit, setLimit] = useState(10);
+
+  const loadBatches = useCallback(() => {
+    dispatch(getAllBatches({ page, size: limit, search: searchQuery }));
+  }, [dispatch, page, limit, searchQuery]);
+
   useEffect(() => {
-    dispatch(getAllBatches());
-  }, [dispatch]);
+    loadBatches();
+  }, [loadBatches]);
 
   const openCreateModal = () => {
     setEditingBatch(null);
@@ -59,6 +68,7 @@ export const BatchManagement: React.FC = () => {
         toast.success('Batch created successfully!');
       }
       setIsModalOpen(false);
+      loadBatches();
     } catch (err: any) {
       toast.error(err || 'Operation failed');
     } finally {
@@ -73,6 +83,7 @@ export const BatchManagement: React.FC = () => {
       await dispatch(deleteBatch(deleteModal.id)).unwrap();
       toast.success('Batch deleted successfully!');
       setDeleteModal(null);
+      loadBatches();
     } catch (err: any) {
       toast.error(err || 'Failed to delete batch');
     } finally {
@@ -80,10 +91,12 @@ export const BatchManagement: React.FC = () => {
     }
   };
 
-  const filteredBatches = batches.filter((b) =>
-    b.batchName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (b.description || '').toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+    setPage(0);
+  };
+
+  const filteredBatches = batches;
 
   return (
     <Layout role="teacher" title="Batch Management" subtitle="Create and manage your student groups">
@@ -93,7 +106,7 @@ export const BatchManagement: React.FC = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" size={16} />
           <input
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={handleSearchChange}
             placeholder="Search batches by name or description..."
             className="w-full search-bar-modern"
           />
@@ -185,6 +198,30 @@ export const BatchManagement: React.FC = () => {
             </tbody>
           </table>
         </div>
+        {/* Pagination footer */}
+        {totalPages > 1 && (
+          <div className="flex flex-col items-center justify-between gap-4 border-t border-[var(--brand-border)] p-4 sm:flex-row bg-slate-50 dark:bg-slate-800/20 text-xs select-none">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-[var(--text-secondary)]">Rows per page:</span>
+              <select
+                value={limit}
+                onChange={(e) => { setLimit(Number(e.target.value)); setPage(0); }}
+                className="rounded-lg border border-[var(--brand-border)] bg-white dark:bg-[#1E293B] px-2 py-1 text-xs font-bold text-[var(--text-primary)] outline-none cursor-pointer"
+              >
+                {[10, 20, 50, 100].map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+            <Pagination
+              page={page + 1}
+              totalPages={totalPages}
+              total={totalElements}
+              limit={limit}
+              onPageChange={(p) => setPage(p - 1)}
+            />
+          </div>
+        )}
       </div>
 
       {/* Create / Edit Modal */}

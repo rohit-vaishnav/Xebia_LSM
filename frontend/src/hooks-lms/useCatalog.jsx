@@ -510,6 +510,32 @@ export function CatalogProvider({ children }) {
   }, [showToast]);
 
   // ── Courses ──
+  const fetchCoursesPage = useCallback(async (page, size, sortBy = 'createdAt', sortDir = 'desc', search = '', categoryId = null, level = '', isActive = null, isPublished = null) => {
+    try {
+      const params = {
+        page: String(page),
+        size: String(size),
+        sortBy,
+        sortDir
+      };
+      if (search) params.search = search;
+      if (categoryId && categoryId !== 'All' && categoryId !== 'all') params.categoryId = String(categoryId);
+      if (level && level !== 'All' && level !== 'all') params.level = level;
+      if (isActive !== null) params.isActive = String(isActive);
+      if (isPublished !== null) params.isPublished = String(isPublished);
+
+      const res = await api.get('/courses', { params });
+      const rawData = res.data.data;
+      if (rawData && rawData.content) {
+        rawData.content = rawData.content.map(mapBackendCourse);
+      }
+      return rawData;
+    } catch (err) {
+      console.error('Error fetching paginated courses:', err);
+      throw err;
+    }
+  }, []);
+
   const getCourse = useCallback(
     (id) => data.courses.find((c) => c.id === Number(id) || c.id === id),
     [data.courses]
@@ -990,6 +1016,7 @@ export function CatalogProvider({ children }) {
       getCategory,
       getCourse,
       getCoursesByCategory,
+      fetchCoursesPage,
       createCategory,
       updateCategory,
       deleteCategory,
@@ -1016,7 +1043,7 @@ export function CatalogProvider({ children }) {
     }),
     [
       data, mediaLibrary, notifications, addNotification, markAllNotificationsAsRead, clearNotifications, hydrated, branding, setBranding,
-      getCategory, getCourse, getCoursesByCategory,
+      getCategory, getCourse, getCoursesByCategory, fetchCoursesPage,
       createCategory, updateCategory, deleteCategory, restoreCategory,
       createCourse, updateCourse, deleteCourse, duplicateCourse,
       addModule, updateModule, deleteModule, duplicateModule, reorderModules,

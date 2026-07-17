@@ -10,6 +10,10 @@ interface BatchState {
   selectedBatch: Batch | null;
   loading: boolean;
   error: string | null;
+  page: number;
+  size: number;
+  totalPages: number;
+  totalElements: number;
 }
 
 const initialState: BatchState = {
@@ -18,26 +22,27 @@ const initialState: BatchState = {
   selectedBatch: null,
   loading: false,
   error: null,
+  page: 0,
+  size: 10,
+  totalPages: 0,
+  totalElements: 0,
 };
 
 export const getAllBatches = createAsyncThunk(
   'batch/getAllBatches',
-  async (_, { rejectWithValue }) => {
+  async (params: Record<string, any> | undefined, { rejectWithValue }) => {
     try {
-      const res = await batchService.getAllBatches();
-      const batches = res.data || [];
-      const batchesWithCount = await Promise.all(
-        batches.map(async (b: Batch) => {
-          try {
-            const studentRes = await api.get(`/teacher/batches/${b.id}/students`);
-            const students = studentRes.data.data || [];
-            return { ...b, studentCount: students.length };
-          } catch {
-            return { ...b, studentCount: 0 };
-          }
-        })
-      );
-      return batchesWithCount;
+      const res = await batchService.getAllBatches(params);
+      const paginatedData = res.data;
+      const batches = paginatedData.content || [];
+      const batchesWithCount = batches.map((b: any) => ({
+        ...b,
+        studentCount: b.studentsCount || 0
+      }));
+      return {
+        ...paginatedData,
+        content: batchesWithCount
+      };
     } catch (err: any) {
       return rejectWithValue(err.response?.data?.message || 'Failed to fetch batches');
     }
@@ -133,10 +138,14 @@ const batchSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(getAllBatches.fulfilled, (state, action: PayloadAction<Batch[]>) => {
+      .addCase(getAllBatches.fulfilled, (state, action: any) => {
         state.loading = false;
-        state.batches = action.payload;
-        state.batchList = action.payload;
+        state.batches = action.payload.content || [];
+        state.batchList = action.payload.content || [];
+        state.page = action.payload.page || 0;
+        state.size = action.payload.size || 10;
+        state.totalPages = action.payload.totalPages || 0;
+        state.totalElements = action.payload.totalElements || 0;
       })
       .addCase(getAllBatches.rejected, (state, action) => {
         state.loading = false;

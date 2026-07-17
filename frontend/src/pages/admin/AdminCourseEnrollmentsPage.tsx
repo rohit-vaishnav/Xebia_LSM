@@ -5,6 +5,7 @@ import { studentService } from '../../services/student.service';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import toast from 'react-hot-toast';
+import { Pagination } from '../../components/shared/Pagination';
 
 export const AdminCourseEnrollmentsPage: React.FC = () => {
   const [enrollments, setEnrollments] = useState<any[]>([]);
@@ -12,6 +13,8 @@ export const AdminCourseEnrollmentsPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
   const [submittingId, setSubmittingId] = useState<number | string | null>(null);
   
   // Remarks Modal/Prompt state
@@ -23,10 +26,11 @@ export const AdminCourseEnrollmentsPage: React.FC = () => {
     setLoading(true);
     try {
       const apiStatus = statusFilter === 'ALL' ? undefined : statusFilter;
-      const res = await studentService.getCourseEnrollments(apiStatus, page, 10);
+      const res = await studentService.getCourseEnrollments(apiStatus, page, pageSize);
       const data = res?.data || res;
       setEnrollments(data.content || []);
       setTotalPages(data.totalPages || 1);
+      setTotalElements(data.totalElements || 0);
     } catch (err) {
       console.error('Error fetching enrollments:', err);
       toast.error('Failed to retrieve enrollment requests.');
@@ -37,7 +41,7 @@ export const AdminCourseEnrollmentsPage: React.FC = () => {
 
   useEffect(() => {
     fetchEnrollments();
-  }, [statusFilter, page]);
+  }, [statusFilter, page, pageSize]);
 
   const handleActionClick = (enrollment: any, action: 'APPROVE' | 'REJECT') => {
     setSelectedEnrollment(enrollment);
@@ -194,22 +198,26 @@ export const AdminCourseEnrollmentsPage: React.FC = () => {
 
         {/* Pagination Footer */}
         {totalPages > 1 && (
-          <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-950 text-xs">
-            <button
-              onClick={() => setPage(p => Math.max(p - 1, 0))}
-              disabled={page === 0}
-              className="px-3.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-250 dark:border-slate-850 rounded-xl font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Previous
-            </button>
-            <span className="text-slate-450 font-bold">Page {page + 1} of {totalPages}</span>
-            <button
-              onClick={() => setPage(p => Math.min(p + 1, totalPages - 1))}
-              disabled={page === totalPages - 1}
-              className="px-3.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-250 dark:border-slate-850 rounded-xl font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Next
-            </button>
+          <div className="flex flex-col items-center justify-between gap-4 border-t border-slate-200 dark:border-slate-800 p-4 sm:flex-row bg-slate-50 dark:bg-slate-950 text-xs select-none">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-slate-450">Rows per page:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => { setPageSize(Number(e.target.value)); setPage(0); }}
+                className="rounded-lg border border-slate-250 dark:border-slate-850 bg-white dark:bg-slate-900 px-2 py-1 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none cursor-pointer"
+              >
+                {[10, 20, 50, 100].map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+            <Pagination
+              page={page + 1}
+              totalPages={totalPages}
+              total={totalElements}
+              limit={pageSize}
+              onPageChange={(p) => setPage(p - 1)}
+            />
           </div>
         )}
       </div>

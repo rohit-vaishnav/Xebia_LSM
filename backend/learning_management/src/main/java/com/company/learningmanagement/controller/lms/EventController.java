@@ -128,10 +128,15 @@ public class EventController {
     public ResponseEntity<ApiResponse> getEvents(
             @RequestParam(required = false) Boolean active,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir,
+            @RequestParam(required = false) String search
     ) {
-        Page<EventResponseDTO> events = eventService.getEvents(active, page, size);
-        ApiResponse response = new ApiResponse("Events retrieved successfully", events);
+        Page<EventResponseDTO> events = eventService.getEvents(active, page, size, sortBy, sortDir, search);
+        com.company.learningmanagement.dto.assignment.response.CustomPage<EventResponseDTO> customPage = 
+                com.company.learningmanagement.dto.assignment.response.CustomPage.of(events);
+        ApiResponse response = new ApiResponse("Events retrieved successfully", customPage);
         return ResponseEntity.ok(response);
     }
 

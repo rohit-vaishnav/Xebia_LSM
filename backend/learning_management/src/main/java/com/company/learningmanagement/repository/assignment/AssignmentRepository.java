@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface AssignmentRepository extends JpaRepository<Assignment, Long> {
+public interface AssignmentRepository extends JpaRepository<Assignment, Long>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<Assignment> {
     Page<Assignment> findByTeacherId(Long teacherId, Pageable pageable);
     Optional<Assignment> findByIdAndTeacherId(Long id, Long teacherId);
     long countByTeacherId(Long teacherId);

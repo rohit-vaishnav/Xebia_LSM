@@ -66,11 +66,16 @@ public class BatchServiceImpl implements BatchService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<BatchResponse> getAllBatches(String teacherEmail, int page, int size) {
+    public org.springframework.data.domain.Page<BatchResponse> getAllBatches(String teacherEmail, int page, int size, String search) {
         Teacher teacher = getTeacher(teacherEmail);
-        Pageable pageable = PageRequest.of(page, size);
-        Page<Batch> batchPage = batchRepository.findByTeacherId(teacher.getId(), pageable);
-        return batchMapper.toResponseList(batchPage.getContent());
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+        org.springframework.data.jpa.domain.Specification<Batch> spec = org.springframework.data.jpa.domain.Specification.where(
+                com.company.learningmanagement.repository.assignment.BatchSpecifications.hasTeacherId(teacher.getId())
+        ).and(
+                com.company.learningmanagement.repository.assignment.BatchSpecifications.hasSearch(search)
+        );
+        org.springframework.data.domain.Page<Batch> batchPage = batchRepository.findAll(spec, pageable);
+        return batchPage.map(batchMapper::toResponse);
     }
 
     @Override

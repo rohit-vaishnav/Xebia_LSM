@@ -49,13 +49,16 @@ public class BatchController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<BatchResponse>>> getAllBatches(
+    public ResponseEntity<ApiResponse<com.company.learningmanagement.dto.assignment.response.CustomPage<BatchResponse>>> getAllBatches(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search,
             Principal principal
     ) {
-        List<BatchResponse> response = batchService.getAllBatches(principal.getName(), page, size);
-        return ResponseEntity.ok(ApiResponse.success("Batches retrieved successfully", response));
+        org.springframework.data.domain.Page<BatchResponse> response = batchService.getAllBatches(principal.getName(), page, size, search);
+        com.company.learningmanagement.dto.assignment.response.CustomPage<BatchResponse> customPage = 
+                com.company.learningmanagement.dto.assignment.response.CustomPage.of(response);
+        return ResponseEntity.ok(ApiResponse.success("Batches retrieved successfully", customPage));
     }
 
     @GetMapping("/{batchId}")

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useEvents } from './EventsContext';
 import { useToast } from '@/hooks-lms/useToast';
@@ -14,6 +14,7 @@ import PageHeader from '@/components/layout-lms/PageHeader';
 import StatCard from '@/components/ui-lms/StatCard';
 import Breadcrumb from '@/components/layout-lms/Breadcrumb';
 import Badge from '@/components/ui-lms/Badge';
+import { Pagination } from '@/components/shared/Pagination';
 
 // Mock participant avatar colors
 const AVATAR_COLORS = [
@@ -26,7 +27,7 @@ const AVATAR_COLORS = [
 
 export default function EventsDashboard() {
   const navigate = useNavigate();
-  const { events, deleteEvent, togglePublishEvent, registrations, createEvent } = useEvents();
+  const { events, fetchEventsPage, deleteEvent, togglePublishEvent, registrations, createEvent } = useEvents();
   const { showToast } = useToast();
   
   // Dashboard state
@@ -40,14 +41,57 @@ export default function EventsDashboard() {
   const [activeMenuId, setActiveMenuId] = useState(null);
   const [activeTab, setActiveTab] = useState('All'); // All | Upcoming | Ongoing | Completed | Draft | Cancelled
   
-  // Modal states
-  const [deleteTarget, setDeleteTarget] = useState(null); // { id, title }
+  // Pagination State
+  const [eventsList, setEventsList] = useState([]);
+  const [loadingEvents, setLoadingEvents] = useState(false);
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
 
-  // Simulate loading skeleton
+  const loadEvents = useCallback(async () => {
+    setLoadingEvents(true);
+    try {
+      let sortByField = 'createdAt';
+      let sortDir = 'desc';
+      if (sortBy === 'name-asc') {
+        sortByField = 'title';
+        sortDir = 'asc';
+      } else if (sortBy === 'name-desc') {
+        sortByField = 'title';
+        sortDir = 'desc';
+      } else if (sortBy === 'date-asc') {
+        sortByField = 'eventDate';
+        sortDir = 'asc';
+      } else if (sortBy === 'date-desc') {
+        sortByField = 'eventDate';
+        sortDir = 'desc';
+      }
+
+      let active = null;
+      if (activeTab === 'Upcoming' || activeTab === 'Ongoing') {
+        active = true;
+      } else if (activeTab === 'Cancelled' || activeTab === 'Completed') {
+        active = false;
+      }
+
+      const data = await fetchEventsPage(page, size, sortByField, sortDir, searchQuery, active);
+      setEventsList(data.content || []);
+      setTotalPages(data.totalPages || 0);
+      setTotalElements(data.totalElements || 0);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingEvents(false);
+      setLoading(false);
+    }
+  }, [page, size, sortBy, activeTab, searchQuery, fetchEventsPage]);
+
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 700);
-    return () => clearTimeout(timer);
-  }, []);
+    loadEvents();
+  }, [loadEvents]);
+
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   // Current Date string
   const currentDateString = useMemo(() => {
@@ -114,6 +158,7 @@ export default function EventsDashboard() {
       await deleteEvent(deleteTarget.id);
       showToast('Event deleted successfully!', 'success');
       setDeleteTarget(null);
+      loadEvents();
     }
   };
 
@@ -122,6 +167,7 @@ export default function EventsDashboard() {
     const action = status === 'CANCELLED' ? 'activated' : 'cancelled';
     showToast(`"${title}" ${action} successfully!`, 'success');
     setActiveMenuId(null);
+    loadEvents();
   };
 
   const handleDuplicate = async (ev) => {
@@ -137,6 +183,7 @@ export default function EventsDashboard() {
     await createEvent(copy);
     showToast(`"${ev.title}" duplicated successfully!`, 'success');
     setActiveMenuId(null);
+    loadEvents();
   };
 
   const handleExport = () => {
@@ -145,30 +192,7 @@ export default function EventsDashboard() {
 
   // Filter and Sort Events
   const filteredEvents = useMemo(() => {
-    let result = [...events];
-    const today = new Date().toISOString().split('T')[0];
-
-    // Status tab filters
-    if (activeTab === 'Upcoming') {
-      result = result.filter(e => e.status === 'UPCOMING');
-    } else if (activeTab === 'Ongoing') {
-      result = result.filter(e => e.status === 'ONGOING');
-    } else if (activeTab === 'Completed') {
-      result = result.filter(e => e.status === 'COMPLETED');
-    } else if (activeTab === 'Cancelled') {
-      result = result.filter(e => e.status === 'CANCELLED');
-    }
-
-    // Search query
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (ev) =>
-          ev.title.toLowerCase().includes(q) ||
-          ev.location.toLowerCase().includes(q) ||
-          (ev.description && ev.description.toLowerCase().includes(q))
-      );
-    }
+    let result = [...eventsList];
 
     // Advanced Category filter
     if (filterCategory !== 'All') {
@@ -177,7 +201,7 @@ export default function EventsDashboard() {
 
     // Organizer filter
     if (filterOrganizer !== 'All') {
-      result = result.filter(() => true); // Mock matches since we default all to Sarah Chen
+      result = result.filter(() => true);
     }
 
     // Date filter
@@ -185,26 +209,8 @@ export default function EventsDashboard() {
       result = result.filter((ev) => ev.eventDate === filterDate);
     }
 
-    // Sort
-    result.sort((a, b) => {
-      if (sortBy === 'name-asc') return a.title.localeCompare(b.title);
-      if (sortBy === 'name-desc') return b.title.localeCompare(a.title);
-      
-      const timeA = a.eventDate ? new Date(a.eventDate).getTime() : 0;
-      const timeB = b.eventDate ? new Date(b.eventDate).getTime() : 0;
-      
-      if (sortBy === 'date-asc') return timeA - timeB;
-      if (sortBy === 'date-desc') return timeB - timeA;
-
-      const enrolledA = getEnrolledList(a.id).length;
-      const enrolledB = getEnrolledList(b.id).length;
-      if (sortBy === 'enrollments-desc') return enrolledB - enrolledA;
-      
-      return 0;
-    });
-
     return result;
-  }, [events, activeTab, searchQuery, filterCategory, filterOrganizer, filterDate, sortBy, registrations]);
+  }, [eventsList, filterCategory, filterOrganizer, filterDate]);
 
   return (
     <div className="min-h-screen bg-brand-surface p-6 lg:p-8 space-y-6 text-brand-text-primary transition-colors duration-200">
@@ -310,7 +316,7 @@ export default function EventsDashboard() {
                 type="text"
                 placeholder="Search by event title..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => { setSearchQuery(e.target.value); setPage(0); }}
                 className="w-full rounded-xl border border-brand-border dark:border-slate-800 bg-slate-50 dark:bg-slate-950 pl-10 pr-4 py-2 text-xs font-semibold text-brand-text-primary dark:text-white placeholder-slate-400 focus:border-brand-primary focus:outline-none"
               />
             </div>
@@ -318,7 +324,7 @@ export default function EventsDashboard() {
             {/* Category selection */}
             <select
               value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
+              onChange={(e) => { setFilterCategory(e.target.value); setPage(0); }}
               className="rounded-xl border border-brand-border dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-semibold text-brand-text-primary dark:text-white focus:border-brand-primary focus:outline-none"
             >
               <option value="All">All Categories</option>
@@ -330,7 +336,7 @@ export default function EventsDashboard() {
             {/* Organizer selection */}
             <select
               value={filterOrganizer}
-              onChange={(e) => setFilterOrganizer(e.target.value)}
+              onChange={(e) => { setFilterOrganizer(e.target.value); setPage(0); }}
               className="rounded-xl border border-brand-border dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-semibold text-brand-text-primary dark:text-white focus:border-brand-primary focus:outline-none"
             >
               <option value="All">All Organizers</option>
@@ -343,7 +349,7 @@ export default function EventsDashboard() {
             <input
               type="date"
               value={filterDate}
-              onChange={(e) => setFilterDate(e.target.value)}
+              onChange={(e) => { setFilterDate(e.target.value); setPage(0); }}
               className="rounded-xl border border-brand-border dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-500 dark:text-white focus:border-brand-primary focus:outline-none"
             />
           </div>
@@ -352,7 +358,7 @@ export default function EventsDashboard() {
           <div className="flex items-center gap-2 justify-between lg:justify-end">
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
+              onChange={(e) => { setSortBy(e.target.value); setPage(0); }}
               className="rounded-xl border border-brand-border dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-semibold text-brand-text-primary dark:text-white focus:border-brand-primary focus:outline-none"
             >
               <option value="date-desc">Newest Date</option>
@@ -755,6 +761,36 @@ export default function EventsDashboard() {
                   })}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {!loadingEvents && filteredEvents.length > 0 && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mt-6 bg-white dark:bg-slate-900 border border-brand-border dark:border-slate-800 rounded-2xl px-4 py-3 gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-500 dark:text-slate-400">Items per page:</span>
+              <select
+                value={size}
+                onChange={(e) => {
+                  setSize(Number(e.target.value));
+                  setPage(0);
+                }}
+                className="pl-2 pr-6 py-1 text-xs bg-white dark:bg-[#1E293B] border border-brand-border dark:border-slate-800 rounded-lg text-slate-700 dark:text-white cursor-pointer"
+              >
+                {[10, 20, 50, 100].map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <Pagination
+                page={page + 1}
+                totalPages={totalPages}
+                total={totalElements}
+                limit={size}
+                onPageChange={(p) => setPage(p - 1)}
+              />
             </div>
           </div>
         )}

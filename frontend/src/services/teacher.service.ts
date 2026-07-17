@@ -112,9 +112,10 @@ export const teacherService = {
       size: params?.limit ?? params?.size ?? '10',
     };
     const res = await api.get('/teacher/assignments', { params: query });
-    const rawAssignments = res.data.data || [];
+    const content = res.data.data;
+    const rawAssignments = content?.content || [];
 
-    let mapped = rawAssignments.map((a: any) => {
+    const mapped = rawAssignments.map((a: any) => {
       let attachmentName = a.resourceUrl ? a.resourceUrl.substring(a.resourceUrl.lastIndexOf('/') + 1) : undefined;
       if (attachmentName) {
         try {
@@ -151,35 +152,13 @@ export const teacherService = {
       };
     });
 
-    if (params?.search) {
-      const searchLower = params.search.toLowerCase();
-      mapped = mapped.filter((a: any) =>
-        a.title.toLowerCase().includes(searchLower) ||
-        a.description.toLowerCase().includes(searchLower) ||
-        (a.batchName || '').toLowerCase().includes(searchLower)
-      );
-    }
-
-    if (params?.subject) {
-      const sub = params.subject.toLowerCase();
-      mapped = mapped.filter((a: any) => a.subject.toLowerCase() === sub);
-    }
-
-    if (params?.status) {
-      const status = params.status;
-      mapped = mapped.filter((a: any) => a.status === status);
-    }
-
-    const page = params?.page ? parseInt(params.page) : 1;
-    const limit = params?.limit ? parseInt(params.limit) : 10;
-    const total = mapped.length;
-    const totalPages = Math.ceil(total / limit);
-    const start = (page - 1) * limit;
-    const end = start + limit;
-    const paginated = mapped.slice(start, end);
+    const page = content?.page !== undefined ? content.page + 1 : 1;
+    const limit = content?.size || 10;
+    const total = content?.totalElements || 0;
+    const totalPages = content?.totalPages || 0;
 
     return {
-      assignments: paginated,
+      assignments: mapped,
       pagination: {
         page,
         limit,

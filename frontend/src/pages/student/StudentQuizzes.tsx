@@ -20,8 +20,10 @@ export const StudentQuizzes: React.FC = () => {
   const [search, setSearch] = useState('');
   const [subjectFilter, setSubjectFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [page, setPage] = useState(1);
-  const [pagination, setPagination] = useState<PaginationMeta>({ page: 1, limit: 10, total: 0, totalPages: 0 });
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
   const [certificates, setCertificates] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -38,26 +40,24 @@ export const StudentQuizzes: React.FC = () => {
   const fetchQuizzes = useCallback(async () => {
     setLoading(true);
     try {
-      const params: Record<string, string> = { page: String(page), limit: '10' };
+      const params: Record<string, string> = { 
+        page: String(page + 1), 
+        limit: String(size),
+        assignmentType: 'QUIZ'
+      };
       if (search) params.search = search;
       if (subjectFilter) params.subject = subjectFilter;
       if (statusFilter) params.status = statusFilter;
       const res = await studentService.getAssignments(params);
-      
-      // Filter only QUIZ type assignments
-      const filtered = (res.assignments || []).filter((a: Assignment) => a.assignmentType === 'QUIZ');
-      setQuizzes(filtered);
-      setPagination({
-        ...res.pagination,
-        total: filtered.length,
-        totalPages: Math.ceil(filtered.length / 10)
-      });
+      setQuizzes(res.assignments);
+      setTotalPages(res.pagination.totalPages);
+      setTotalElements(res.pagination.total);
     } catch {
       // silent fail
     } finally {
       setLoading(false);
     }
-  }, [search, subjectFilter, statusFilter, page]);
+  }, [search, subjectFilter, statusFilter, page, size]);
 
   useEffect(() => {
     fetchQuizzes();
@@ -275,14 +275,31 @@ export const StudentQuizzes: React.FC = () => {
 
       {/* Pagination */}
       {!loading && quizzes.length > 0 && (
-        <div className="mt-6">
-          <Pagination
-            page={page}
-            totalPages={pagination.totalPages}
-            total={pagination.total}
-            limit={pagination.limit}
-            onPageChange={setPage}
-          />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mt-6 bg-white dark:bg-[#1E293B] border border-[var(--brand-border)] rounded-2xl px-4 py-3 gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-[var(--text-secondary)]">Items per page:</span>
+            <select
+              value={size}
+              onChange={(e) => {
+                setSize(Number(e.target.value));
+                setPage(0);
+              }}
+              className="pl-2 pr-6 py-1 text-xs bg-white dark:bg-[#1E293B] border border-[var(--brand-border)] rounded-lg text-[var(--text-primary)] cursor-pointer"
+            >
+              {[10, 20, 50, 100].map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <Pagination
+              page={page + 1}
+              totalPages={totalPages}
+              total={totalElements}
+              limit={size}
+              onPageChange={(p) => setPage(p - 1)}
+            />
+          </div>
         </div>
       )}
     </Layout>

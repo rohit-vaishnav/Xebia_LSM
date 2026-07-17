@@ -177,6 +177,25 @@ export function EventsProvider({ children }) {
     );
   };
 
+  const fetchEventsPage = async (page, size, sortBy = 'createdAt', sortDir = 'desc', search = '', active = null) => {
+    try {
+      const params = {
+        page: String(page),
+        size: String(size),
+        sortBy,
+        sortDir,
+      };
+      if (search) params.search = search;
+      if (active !== null && active !== undefined) params.active = String(active);
+
+      const response = await api.get('/events', { params });
+      return response.data.data;
+    } catch (err) {
+      console.error('Failed to fetch events page:', err);
+      throw err;
+    }
+  };
+
   return (
     <EventsContext.Provider
       value={{
@@ -193,6 +212,7 @@ export function EventsProvider({ children }) {
         updateEnrollmentStatus,
         isRegistered,
         refreshData: fetchData,
+        fetchEventsPage,
       }}
     >
       {children}

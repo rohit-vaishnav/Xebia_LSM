@@ -138,12 +138,23 @@ public class AssignmentController {
     }
 
     @GetMapping("/api/teacher/assignments")
-    public ResponseEntity<ApiResponse<List<AssignmentResponse>>> getAllAssignments(
+    public ResponseEntity<ApiResponse<com.company.learningmanagement.dto.assignment.response.CustomPage<AssignmentResponse>>> getAllAssignments(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String subject,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String assignmentType,
+            @RequestParam(required = false) Long batchId,
             Principal principal
     ) {
-        List<AssignmentResponse> response = assignmentService.getAllAssignments(principal.getName(), page, size);
+        org.springframework.data.domain.Page<AssignmentResponse> paged = assignmentService.getAllAssignments(
+                principal.getName(), page, size, sortBy, sortDir, search, subject, status, assignmentType, batchId
+        );
+        com.company.learningmanagement.dto.assignment.response.CustomPage<AssignmentResponse> response = 
+                com.company.learningmanagement.dto.assignment.response.CustomPage.of(paged);
         return ResponseEntity.ok(ApiResponse.success("Assignments retrieved successfully", response));
     }
 
@@ -198,12 +209,23 @@ public class AssignmentController {
     // --- Student Assignment Endpoints ---
 
     @GetMapping("/api/student/assignments")
-    public ResponseEntity<ApiResponse<List<AssignmentResponse>>> getStudentAssignments(
+    public ResponseEntity<ApiResponse<com.company.learningmanagement.dto.assignment.response.CustomPage<AssignmentResponse>>> getStudentAssignments(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String subject,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String assignmentType,
+            @RequestParam(required = false) Long batchId,
             Principal principal
     ) {
-        List<AssignmentResponse> response = assignmentService.getStudentAssignments(principal.getName(), page, size);
+        org.springframework.data.domain.Page<AssignmentResponse> paged = assignmentService.getStudentAssignments(
+                principal.getName(), page, size, sortBy, sortDir, search, subject, status, assignmentType, batchId
+        );
+        com.company.learningmanagement.dto.assignment.response.CustomPage<AssignmentResponse> response = 
+                com.company.learningmanagement.dto.assignment.response.CustomPage.of(paged);
         return ResponseEntity.ok(ApiResponse.success("Assigned assignments retrieved successfully", response));
     }
 

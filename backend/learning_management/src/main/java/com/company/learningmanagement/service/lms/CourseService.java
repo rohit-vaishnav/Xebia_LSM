@@ -14,7 +14,10 @@ public interface CourseService {
     void delete(Long id);
     BulkOperationResponse createBulk(List<CourseRequestDTO> requests);
     
-    org.springframework.data.domain.Page<CourseResponseDTO> getAll(int page, int size);
+    org.springframework.data.domain.Page<CourseResponseDTO> getAll(
+            int page, int size, String sortBy, String sortDir,
+            String search, Long categoryId, String level, Boolean isActive, Boolean isPublished
+    );
     void assignTeachersToCourse(Long courseId, List<Long> teacherIds);
     void removeTeacherFromCourse(Long courseId, Long teacherId);
     List<com.company.learningmanagement.dto.assignment.response.TeacherResponse> getAssignedTeachers(Long courseId);

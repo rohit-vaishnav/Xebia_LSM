@@ -266,9 +266,33 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     @Transactional(readOnly = true)
-    public org.springframework.data.domain.Page<CourseResponseDTO> getAll(int page, int size) {
-        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
-        return courseRepository.findAllWithCategoryPageable(pageable)
+    public org.springframework.data.domain.Page<CourseResponseDTO> getAll(
+            int page, int size, String sortBy, String sortDir,
+            String search, Long categoryId, String level, Boolean isActive, Boolean isPublished
+    ) {
+        org.springframework.data.domain.Sort sort = org.springframework.data.domain.Sort.unsorted();
+        if (sortBy != null && !sortBy.trim().isEmpty()) {
+            org.springframework.data.domain.Sort.Direction direction = 
+                (sortDir != null && "asc".equalsIgnoreCase(sortDir)) 
+                ? org.springframework.data.domain.Sort.Direction.ASC 
+                : org.springframework.data.domain.Sort.Direction.DESC;
+            sort = org.springframework.data.domain.Sort.by(direction, sortBy);
+        }
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size, sort);
+
+        org.springframework.data.jpa.domain.Specification<CourseEntity> spec = org.springframework.data.jpa.domain.Specification.where(
+                com.company.learningmanagement.repository.lms.CourseSpecifications.hasCategoryId(categoryId)
+        ).and(
+                com.company.learningmanagement.repository.lms.CourseSpecifications.hasLevel(level)
+        ).and(
+                com.company.learningmanagement.repository.lms.CourseSpecifications.hasIsActive(isActive)
+        ).and(
+                com.company.learningmanagement.repository.lms.CourseSpecifications.hasIsPublished(isPublished)
+        ).and(
+                com.company.learningmanagement.repository.lms.CourseSpecifications.hasSearch(search)
+        );
+
+        return courseRepository.findAll(spec, pageable)
                 .map(CourseMapper::toResponseDTO);
     }
 

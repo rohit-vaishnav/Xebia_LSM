@@ -237,44 +237,31 @@ export const studentService = {
 
   // Assignments
   getAssignments: async (params?: Record<string, string>) => {
+    const backendPage = params?.page ? String(Math.max(0, Number(params.page) - 1)) : '0';
+    const query = {
+      ...params,
+      page: backendPage,
+      size: params?.limit ?? params?.size ?? '10',
+    };
+
     const [assignmentsRes, submissionsRes] = await Promise.all([
-      api.get('/student/assignments', { params: { page: '0', size: '1000' } }),
+      api.get('/student/assignments', { params: query }),
       api.get('/student/submissions', { params: { page: '0', size: '1000' } }),
     ]);
 
-    const rawAssignments = assignmentsRes.data.data || [];
+    const content = assignmentsRes.data.data;
+    const rawAssignments = content?.content || [];
     const submissions = submissionsRes.data.data || [];
 
-    let mapped = rawAssignments.map((a: any) => mapAssignment(a, submissions));
+    const mapped = rawAssignments.map((a: any) => mapAssignment(a, submissions));
 
-    if (params?.search) {
-      const searchLower = params.search.toLowerCase();
-      mapped = mapped.filter((a: Assignment) =>
-        a.title.toLowerCase().includes(searchLower) ||
-        a.description.toLowerCase().includes(searchLower)
-      );
-    }
-
-    if (params?.subject) {
-      const sub = params.subject.toLowerCase();
-      mapped = mapped.filter((a: Assignment) => a.subject.toLowerCase() === sub);
-    }
-
-    if (params?.status) {
-      const status = params.status;
-      mapped = mapped.filter((a: Assignment) => a.submissionStatus === status);
-    }
-
-    const page = params?.page ? parseInt(params.page) : 1;
-    const limit = params?.limit ? parseInt(params.limit) : 10;
-    const total = mapped.length;
-    const totalPages = Math.ceil(total / limit);
-    const start = (page - 1) * limit;
-    const end = start + limit;
-    const paginated = mapped.slice(start, end);
+    const page = content?.page !== undefined ? content.page + 1 : 1;
+    const limit = content?.size || 10;
+    const total = content?.totalElements || 0;
+    const totalPages = content?.totalPages || 0;
 
     return {
-      assignments: paginated,
+      assignments: mapped,
       pagination: {
         page,
         limit,

@@ -15,6 +15,7 @@ import com.company.learningmanagement.repository.assignment.StudentRepository;
 import com.company.learningmanagement.repository.lms.CourseEnrollmentRepository;
 import com.company.learningmanagement.repository.lms.EventRegistrationRepository;
 import com.company.learningmanagement.repository.lms.EventRepository;
+import com.company.learningmanagement.repository.lms.EventSpecifications;
 import com.company.learningmanagement.service.lms.EventService;
 import com.company.learningmanagement.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
@@ -116,14 +117,20 @@ public class EventServiceImpl implements EventService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<EventResponseDTO> getEvents(Boolean active, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<Event> events;
-        if (active != null) {
-            events = eventRepository.findByActive(active, pageable);
-        } else {
-            events = eventRepository.findAll(pageable);
+    public Page<EventResponseDTO> getEvents(Boolean active, int page, int size, String sortBy, String sortDir, String search) {
+        org.springframework.data.domain.Sort sort = sortDir.equalsIgnoreCase("asc")
+                ? org.springframework.data.domain.Sort.by(sortBy).ascending()
+                : org.springframework.data.domain.Sort.by(sortBy).descending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        org.springframework.data.jpa.domain.Specification<Event> spec = org.springframework.data.jpa.domain.Specification
+                .where(EventSpecifications.hasActive(active));
+
+        if (org.springframework.util.StringUtils.hasText(search)) {
+            spec = spec.and(EventSpecifications.searchByText(search));
         }
+
+        Page<Event> events = eventRepository.findAll(spec, pageable);
         return events.map(this::mapToResponse);
     }
 

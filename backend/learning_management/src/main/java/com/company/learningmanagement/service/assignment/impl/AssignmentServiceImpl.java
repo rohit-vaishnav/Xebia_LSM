@@ -15,6 +15,7 @@ import com.company.learningmanagement.exception.assignment.ResourceNotFoundExcep
 import com.company.learningmanagement.exception.assignment.UnauthorizedException;
 import com.company.learningmanagement.mapper.assignment.AssignmentMapper;
 import com.company.learningmanagement.repository.assignment.AssignmentRepository;
+import com.company.learningmanagement.repository.assignment.AssignmentSpecifications;
 import com.company.learningmanagement.repository.assignment.BatchRepository;
 import com.company.learningmanagement.repository.assignment.StudentRepository;
 import com.company.learningmanagement.repository.assignment.SubmissionRepository;
@@ -242,23 +243,123 @@ public class AssignmentServiceImpl implements AssignmentService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<AssignmentResponse> getAllAssignments(String teacherEmail, int page, int size) {
+    public org.springframework.data.domain.Page<AssignmentResponse> getAllAssignments(
+            String teacherEmail,
+            int page,
+            int size,
+            String sortBy,
+            String sortDir,
+            String search,
+            String subject,
+            String status,
+            String assignmentType,
+            Long batchId
+    ) {
         Teacher teacher = getTeacher(teacherEmail);
-        Pageable pageable = PageRequest.of(page, size);
-        Page<Assignment> assignmentPage = assignmentRepository.findByTeacherId(teacher.getId(), pageable);
-        return populateResponseCounts(assignmentMapper.toResponseList(assignmentPage.getContent()));
+        org.springframework.data.domain.Sort sort = sortDir.equalsIgnoreCase("asc")
+                ? org.springframework.data.domain.Sort.by(sortBy).ascending()
+                : org.springframework.data.domain.Sort.by(sortBy).descending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        org.springframework.data.jpa.domain.Specification<Assignment> spec = org.springframework.data.jpa.domain.Specification
+                .where(AssignmentSpecifications.hasTeacherId(teacher.getId()));
+
+        if (org.springframework.util.StringUtils.hasText(assignmentType)) {
+            try {
+                spec = spec.and(AssignmentSpecifications.hasAssignmentType(com.company.learningmanagement.enums.AssignmentType.valueOf(assignmentType.toUpperCase())));
+            } catch (Exception e) {
+                // ignore
+            }
+        }
+        if (org.springframework.util.StringUtils.hasText(subject)) {
+            spec = spec.and(AssignmentSpecifications.hasSubject(subject));
+        }
+        if (org.springframework.util.StringUtils.hasText(status)) {
+            try {
+                spec = spec.and(AssignmentSpecifications.hasStatus(com.company.learningmanagement.enums.AssignmentStatus.valueOf(status.toUpperCase())));
+            } catch (Exception e) {
+                // ignore
+            }
+        }
+        if (batchId != null) {
+            spec = spec.and(AssignmentSpecifications.hasBatchId(batchId));
+        }
+        if (org.springframework.util.StringUtils.hasText(search)) {
+            spec = spec.and(AssignmentSpecifications.searchByText(search));
+        }
+
+        Page<Assignment> assignmentPage = assignmentRepository.findAll(spec, pageable);
+        return assignmentPage.map(assignment -> {
+            AssignmentResponse res = assignmentMapper.toResponse(assignment);
+            populateResponseCounts(res);
+            return res;
+        });
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<AssignmentResponse> getStudentAssignments(String studentEmail, int page, int size) {
+    public org.springframework.data.domain.Page<AssignmentResponse> getStudentAssignments(
+            String studentEmail,
+            int page,
+            int size,
+            String sortBy,
+            String sortDir,
+            String search,
+            String subject,
+            String status,
+            String assignmentType,
+            Long batchId
+    ) {
         Student student = getStudent(studentEmail);
+        org.springframework.data.domain.Sort sort = sortDir.equalsIgnoreCase("asc")
+                ? org.springframework.data.domain.Sort.by(sortBy).ascending()
+                : org.springframework.data.domain.Sort.by(sortBy).descending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+
         if (student.getBatch() == null) {
-            return List.of();
+            return org.springframework.data.domain.Page.empty(pageable);
         }
-        Pageable pageable = PageRequest.of(page, size);
-        Page<Assignment> assignmentPage = assignmentRepository.findByBatchIdAndStatus(student.getBatch().getId(), AssignmentStatus.ACTIVE, pageable);
-        return populateResponseCounts(assignmentMapper.toResponseList(assignmentPage.getContent()));
+
+        org.springframework.data.jpa.domain.Specification<Assignment> spec = org.springframework.data.jpa.domain.Specification
+                .where(AssignmentSpecifications.hasBatchId(student.getBatch().getId()));
+
+        if (org.springframework.util.StringUtils.hasText(status)) {
+            try {
+                spec = spec.and(AssignmentSpecifications.hasStatus(com.company.learningmanagement.enums.AssignmentStatus.valueOf(status.toUpperCase())));
+            } catch (Exception e) {
+                spec = spec.and(AssignmentSpecifications.hasStatus(com.company.learningmanagement.enums.AssignmentStatus.ACTIVE));
+            }
+        } else {
+            spec = spec.and(AssignmentSpecifications.hasStatus(com.company.learningmanagement.enums.AssignmentStatus.ACTIVE));
+        }
+
+        if (org.springframework.util.StringUtils.hasText(assignmentType)) {
+            try {
+                spec = spec.and(AssignmentSpecifications.hasAssignmentType(com.company.learningmanagement.enums.AssignmentType.valueOf(assignmentType.toUpperCase())));
+            } catch (Exception e) {
+                // ignore
+            }
+        }
+        if (org.springframework.util.StringUtils.hasText(subject)) {
+            spec = spec.and(AssignmentSpecifications.hasSubject(subject));
+        }
+        if (org.springframework.util.StringUtils.hasText(search)) {
+            spec = spec.and(AssignmentSpecifications.searchByText(search));
+        }
+
+        Page<Assignment> assignmentPage = assignmentRepository.findAll(spec, pageable);
+        return assignmentPage.map(assignment -> {
+            AssignmentResponse res = assignmentMapper.toResponse(assignment);
+            populateResponseCounts(res);
+
+            boolean hasSubmitted = submissionRepository.findByAssignmentIdAndStudentId(assignment.getId(), student.getId()).isPresent();
+            if (!hasSubmitted && res.getQuestions() != null) {
+                for (com.company.learningmanagement.dto.assignment.response.QuestionResponse qr : res.getQuestions()) {
+                    qr.setCorrectAnswer(null);
+                }
+            }
+            return res;
+        });
     }
 
     @Override

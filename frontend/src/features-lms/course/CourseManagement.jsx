@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, ChevronDown } from 'lucide-react';
 import { useCatalog } from '@/hooks-lms/useCatalog';
@@ -30,7 +30,7 @@ function SelectDropdown({ value, options, onChange }) {
 }
 
 export default function CourseManagement({ categoryId = null }) {
-  const { categories, courses, getCategory, deleteCourse, duplicateCourse, hydrated } = useCatalog();
+  const { categories, courses, getCategory, deleteCourse, duplicateCourse, hydrated, fetchCoursesPage } = useCatalog();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const category = categoryId ? getCategory(categoryId) : null;
@@ -44,32 +44,86 @@ export default function CourseManagement({ categoryId = null }) {
   const [pageSize, setPageSize]               = useState(DEFAULT_PAGE_SIZE);
   const [deleteTarget, setDeleteTarget]       = useState(null);
 
+  // Paginated state
+  const [coursesList, setCoursesList] = useState([]);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
   const baseCourses = useMemo(() => {
-    let list = courses.filter((c) => !c.deletedAt);
+    let list = (courses || []).filter((c) => !c.deletedAt);
     if (categoryId) list = list.filter((c) => c.categoryId === Number(categoryId) || c.categoryId === categoryId);
     return list;
   }, [courses, categoryId]);
 
-  const filtered = useMemo(() => {
-    let list = baseCourses.filter((c) => {
-      const q = search.toLowerCase();
-      const matchSearch   = !search || c.title.toLowerCase().includes(q) || c.slug?.toLowerCase().includes(q);
-      const matchStatus   = statusFilter === 'all'     || c.status === statusFilter;
-      const matchDiff     = difficultyFilter === 'all' || c.difficulty === difficultyFilter;
-      const matchCat      = categoryFilter === 'all'   || String(c.categoryId) === categoryFilter;
-      return matchSearch && matchStatus && matchDiff && matchCat;
-    });
-    list = [...list].sort((a, b) => {
-      if (sortBy === 'title')      return a.title.localeCompare(b.title);
-      if (sortBy === 'difficulty') return a.difficulty.localeCompare(b.difficulty);
-      if (sortBy === 'status')     return a.status.localeCompare(b.status);
-      if (sortBy === 'created')    return new Date(b.createdAt) - new Date(a.createdAt);
-      return new Date(b.updatedAt) - new Date(a.updatedAt);
-    });
-    return list;
-  }, [baseCourses, search, statusFilter, difficultyFilter, categoryFilter, sortBy]);
+  const loadCourses = useCallback(async () => {
+    setLoading(true);
+    try {
+      let sortByField = 'updatedAt';
+      let sortDir = 'desc';
+      if (sortBy === 'title') {
+        sortByField = 'title';
+        sortDir = 'asc';
+      } else if (sortBy === 'created') {
+        sortByField = 'createdAt';
+        sortDir = 'desc';
+      }
 
-  const { data, total, totalPages } = paginate(filtered, page, pageSize);
+      const activeParam = statusFilter === 'archived' ? false : true;
+      const publishedParam = statusFilter === 'published' ? true : (statusFilter === 'draft' ? false : null);
+      const catParam = categoryId || (categoryFilter !== 'all' ? categoryFilter : null);
+
+      const data = await fetchCoursesPage(
+        page - 1,
+        pageSize,
+        sortByField,
+        sortDir,
+        search,
+        catParam,
+        difficultyFilter,
+        activeParam,
+        publishedParam
+      );
+      setCoursesList(data?.content || []);
+      setTotalPages(data?.totalPages || 0);
+      setTotalElements(data?.totalElements || 0);
+    } catch (err) {
+      console.error('Error loading paginated courses:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, pageSize, sortBy, search, statusFilter, difficultyFilter, categoryFilter, categoryId, fetchCoursesPage, refreshTrigger]);
+
+  useEffect(() => {
+    loadCourses();
+  }, [loadCourses]);
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteCourse(deleteTarget.id);
+      showToast('Course archived successfully.');
+      setRefreshTrigger(t => t + 1);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDeleteTarget(null);
+    }
+  };
+
+  const handleDuplicate = async (id) => {
+    try {
+      await duplicateCourse(id);
+      showToast('Course duplicated successfully.');
+      setRefreshTrigger(t => t + 1);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const data = coursesList;
+  const total = totalElements;
 
   const handleCreate = () => {
     if (!categories?.length) {
@@ -223,7 +277,7 @@ export default function CourseManagement({ categoryId = null }) {
           />
 
           <span className="ml-auto whitespace-nowrap text-xs font-medium text-brand-text-secondary">
-            {filtered.length} courses
+            {totalElements} courses
           </span>
         </div>
 
@@ -246,7 +300,7 @@ export default function CourseManagement({ categoryId = null }) {
                 categoryColor={getCategoryColor(course.categoryId)}
                 onEdit={(c)      => navigate(`/admin/courses/${c.id}/edit`)}
                 onDelete={setDeleteTarget}
-                onDuplicate={(c) => duplicateCourse(c.id)}
+                onDuplicate={(c) => handleDuplicate(c.id)}
               />
             ))}
           </div>
@@ -270,7 +324,7 @@ export default function CourseManagement({ categoryId = null }) {
       <ConfirmationDialog
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
-        onConfirm={() => { deleteCourse(deleteTarget.id); setDeleteTarget(null); }}
+        onConfirm={handleDeleteConfirm}
         title="Delete Course"
         message="Archive this course? You can restore it later."
       />

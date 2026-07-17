@@ -10,7 +10,7 @@ public interface EventService {
     EventResponseDTO updateEvent(Long id, EventRequestDTO request);
     void deleteEvent(Long id);
     EventResponseDTO closeRegistration(Long id);
-    Page<EventResponseDTO> getEvents(Boolean active, int page, int size);
+    Page<EventResponseDTO> getEvents(Boolean active, int page, int size, String sortBy, String sortDir, String search);
     EventResponseDTO getEventById(Long id);
     
     EventRegistrationResponseDTO registerForEvent(Long eventId);

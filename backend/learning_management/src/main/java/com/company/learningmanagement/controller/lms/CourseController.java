@@ -57,15 +57,28 @@ public class CourseController {
     @GetMapping
     public ResponseEntity<ApiResponse> getAllCourses(
             @RequestParam(required = false) Integer page,
-            @RequestParam(required = false) Integer size
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortDir,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String level,
+            @RequestParam(required = false) Boolean isActive,
+            @RequestParam(required = false) Boolean isPublished
     ) {
         if (page != null && size != null) {
-            org.springframework.data.domain.Page<CourseResponseDTO> courses = courseService.getAll(page, size);
-            ApiResponse response = new ApiResponse("Courses retrieved successfully", courses);
+            org.springframework.data.domain.Page<CourseResponseDTO> courses = courseService.getAll(
+                    page, size, sortBy, sortDir, search, categoryId, level, isActive, isPublished
+            );
+            com.company.learningmanagement.dto.assignment.response.CustomPage<CourseResponseDTO> customPage = 
+                    com.company.learningmanagement.dto.assignment.response.CustomPage.of(courses);
+            ApiResponse response = new ApiResponse("Courses retrieved successfully", customPage);
             return ResponseEntity.ok(response);
         } else {
-            List<CourseResponseDTO> courses = courseService.getAll();
-            ApiResponse response = new ApiResponse("Courses retrieved successfully", courses);
+            org.springframework.data.domain.Page<CourseResponseDTO> courses = courseService.getAll(
+                    0, 1000, sortBy, sortDir, search, categoryId, level, isActive, isPublished
+            );
+            ApiResponse response = new ApiResponse("Courses retrieved successfully", courses.getContent());
             return ResponseEntity.ok(response);
         }
     }

@@ -1,31 +1,44 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useEvents } from './EventsContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '@/hooks-lms/useToast';
 import { Calendar, Clock, MapPin, Search, CheckCircle, ArrowRight } from 'lucide-react';
 import Button from '@/components/ui-lms/Button';
+import { Pagination } from '@/components/shared/Pagination';
 
 export default function StudentEventsPage() {
   const navigate = useNavigate();
-  const { events, registerForEvent, isRegistered, cancelEnrollment } = useEvents();
+  const { fetchEventsPage, registerForEvent, isRegistered, cancelEnrollment } = useEvents();
   const { user } = useAuth();
   const { showToast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
+  const [eventsList, setEventsList] = useState([]);
+  const [loadingEvents, setLoadingEvents] = useState(false);
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
 
-  // Filter only UPCOMING or ONGOING events
-  const publishedEvents = useMemo(() => {
-    const list = Array.isArray(events) ? events : [];
-    return list.filter((ev) => ev.status === 'UPCOMING' || ev.status === 'ONGOING');
-  }, [events]);
+  const loadEvents = useCallback(async () => {
+    setLoadingEvents(true);
+    try {
+      const data = await fetchEventsPage(page, size, 'createdAt', 'desc', searchQuery, true);
+      setEventsList(data.content || []);
+      setTotalPages(data.totalPages || 0);
+      setTotalElements(data.totalElements || 0);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingEvents(false);
+    }
+  }, [page, size, searchQuery, fetchEventsPage]);
 
-  const filteredEvents = useMemo(() => {
-    return publishedEvents.filter(
-      (ev) =>
-        ev.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        ev.location.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [publishedEvents, searchQuery]);
+  useEffect(() => {
+    loadEvents();
+  }, [loadEvents]);
+
+  const filteredEvents = eventsList;
 
   const handleRegister = async (eventId, title) => {
     if (!user) {
@@ -75,7 +88,7 @@ export default function StudentEventsPage() {
           type="text"
           placeholder="Search upcoming events..."
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(e) => { setSearchQuery(e.target.value); setPage(0); }}
           className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 pl-10 pr-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-white placeholder-slate-400 focus:border-purple-500 focus:outline-none"
         />
       </div>
@@ -175,6 +188,36 @@ export default function StudentEventsPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {!loadingEvents && filteredEvents.length > 0 && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mt-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3 gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-500 dark:text-slate-400">Items per page:</span>
+            <select
+              value={size}
+              onChange={(e) => {
+                setSize(Number(e.target.value));
+                setPage(0);
+              }}
+              className="pl-2 pr-6 py-1 text-xs bg-white dark:bg-[#1E293B] border border-slate-200 dark:border-slate-800 rounded-lg text-slate-700 dark:text-white cursor-pointer"
+            >
+              {[10, 20, 50, 100].map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <Pagination
+              page={page + 1}
+              totalPages={totalPages}
+              total={totalElements}
+              limit={size}
+              onPageChange={(p) => setPage(p - 1)}
+            />
+          </div>
         </div>
       )}
     </div>

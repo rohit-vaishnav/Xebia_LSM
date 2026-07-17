@@ -15,9 +15,9 @@ export interface BatchRequestData {
 }
 
 export const batchService = {
-  getAllBatches: async () => {
-    const res = await api.get('/teacher/batches');
-    return res.data; // Should return { success: true, message: "...", data: Batch[] }
+  getAllBatches: async (params?: Record<string, any>) => {
+    const res = await api.get('/teacher/batches', { params });
+    return res.data;
   },
 
   getBatchById: async (id: number) => {
